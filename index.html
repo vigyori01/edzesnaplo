@@ -377,7 +377,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const DEFAULT_CLIENT_ID='%%GOOGLE_CLIENT_ID%%';
+const DEFAULT_CLIENT_ID='29057013726-bjqcvqo61n3mk0c932002e4usjfafr1a.apps.googleusercontent.com';
 const DATA_NAME='edzesnaplo-adatok.json',FOLDER_NAME='Edzésnapló';
 const DRIVE={on:lsGet('edz.drive.on',false),client:lsGet('edz.drive.client','')||(DEFAULT_CLIENT_ID.startsWith('%%')?'':DEFAULT_CLIENT_ID),
   token:lsGet('edz.drive.tok',null),folder:lsGet('edz.drive.folder',null),file:lsGet('edz.drive.file',null),last:lsGet('edz.drive.last',0),status:'',err:'',tc:null,busy:false,again:false};
