@@ -1,0 +1,16 @@
+{
+  "name": "Edzésnapló",
+  "short_name": "Edzésnapló",
+  "description": "Vitorlás edzői napló: edzéstervek, napi adatok, beszámolók és versenyzői kiértékelések.",
+  "lang": "hu",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#edf3f3",
+  "theme_color": "#0d5c6b",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

@@ -1,0 +1,1354 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d5c6b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Edzésnapló">
+<title>Edzésnapló</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: mobile-first log of sailing sessions; sticky header + tabs, cards by month, full-screen entry sheet with button groups */
+:root{
+  --bg:#edf3f3; --surface:#ffffff; --surface-2:#f6fafa; --ink:#0f2a33; --muted:#587078; --line:#d2dfe1;
+  --water:#0d5c6b; --water-soft:#d5eaed; --on-water:#ffffff;
+  --buoy:#e3542a; --buoy-soft:#fbe3da; --ok:#2f7d4f; --warn:#a86a00;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0a181d; --surface:#11242b; --surface-2:#0e1f25; --ink:#e3eef0; --muted:#8ea6ac; --line:#23404a;
+  --water:#52b6c7; --water-soft:#163a43; --on-water:#06161b;
+  --buoy:#ff7d4f; --buoy-soft:#3d2219; --ok:#5cc187; --warn:#e3a640; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a181d; --surface:#11242b; --surface-2:#0e1f25; --ink:#e3eef0; --muted:#8ea6ac; --line:#23404a;
+  --water:#52b6c7; --water-soft:#163a43; --on-water:#06161b;
+  --buoy:#ff7d4f; --buoy-soft:#3d2219; --ok:#5cc187; --warn:#e3a640; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer}
+input,textarea{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--buoy);outline-offset:2px}
+.num,.tab-num{font-variant-numeric:tabular-nums}
+
+header.top{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-row{display:flex;align-items:center;gap:12px;padding-block:10px 6px}
+.brand{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.02em;text-transform:uppercase;line-height:1}
+.brand small{display:block;font-family:var(--body);font-weight:600;font-size:12px;letter-spacing:.06em;color:var(--muted);text-transform:none;margin-top:2px}
+.sync{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);text-align:right}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.dot.ok{background:var(--ok)} .dot.wait{background:var(--warn)} .dot.off{background:var(--buoy)}
+.seasons{display:flex;gap:6px;overflow-x:auto;padding-block:4px 8px;scrollbar-width:none}
+.seasons::-webkit-scrollbar{display:none}
+.tabs{display:flex;gap:2px}
+.tabs{overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:1 0 auto;white-space:nowrap;background:none;border:0;padding:10px 6px;font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--buoy)}
+
+main{padding-block:14px 120px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:15px;line-height:1.2;white-space:nowrap;min-height:38px}
+.chip.on{background:var(--water);border-color:var(--water);color:var(--on-water);font-weight:600}
+.chip.mid{background:var(--water-soft);border-color:var(--water-soft)}
+.chip.add{border-style:dashed;color:var(--muted)}
+.chip.ghost{background:none}
+.chip.hid{opacity:.55}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.addrow{display:flex;gap:6px;flex-wrap:wrap;width:100%}
+.addrow input{flex:1;min-width:140px;border:1px solid var(--water);border-radius:999px;padding:7px 13px;background:var(--surface)}
+.btn{border:0;border-radius:var(--r);padding:11px 16px;font-weight:700;background:var(--water);color:var(--on-water)}
+.btn.sec{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--buoy);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.toolbar .sp{flex:1}
+.month{display:flex;align-items:baseline;justify-content:space-between;margin:22px 2px 8px;font-family:var(--display);text-transform:uppercase;letter-spacing:.06em}
+.month h2{margin:0;font-size:20px;font-weight:700}
+.month span{color:var(--muted);font-size:15px;font-weight:600}
+.list{display:flex;flex-direction:column;gap:8px}
+.card{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;text-align:left;width:100%}
+.card.terv{background:var(--surface-2);border-style:dashed}
+.card.today{border-color:var(--buoy)}
+.c-date{text-align:center;line-height:1}
+.c-date b{display:block;font-family:var(--display);font-size:28px;font-weight:700}
+.c-date span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.c-main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.c-top{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-weight:600}
+.pill{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:4px;background:var(--water-soft);color:var(--ink)}
+.pill.verseny{background:var(--buoy-soft);color:var(--buoy)}
+.pill.terv{background:none;border:1px dashed var(--muted);color:var(--muted)}
+.c-race{font-weight:700;color:var(--buoy)}
+.c-wind{font-variant-numeric:tabular-nums}
+.c-wind::before{content:"≋ ";color:var(--water);font-weight:700}
+.c-focus,.c-ath{color:var(--muted);font-size:14px;overflow-wrap:anywhere}
+.c-time{font-family:var(--display);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.c-time small{display:block;font-family:var(--body);font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.c-num{color:var(--muted);font-weight:400;font-size:13px;margin-left:auto}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:28px 20px;text-align:center;color:var(--muted)}
+.empty h3{color:var(--ink);font-family:var(--display);font-size:22px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
+.empty .chips{justify-content:center;margin-top:14px}
+
+.fab{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:6;background:var(--buoy);color:#fff;border:0;border-radius:999px;padding:15px 22px;font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+
+/* Sheet */
+.sheet{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column}
+.sheet-in{max-width:760px;width:100%;margin:0 auto;display:flex;flex-direction:column;height:100%}
+.sh-head{display:flex;align-items:center;gap:10px;padding-block:calc(10px + env(safe-area-inset-top,0px)) 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--surface)}
+.sh-head h2{margin:0;font-family:var(--display);font-size:22px;text-transform:uppercase;letter-spacing:.04em;flex:1}
+.sh-body{flex:1;overflow-y:auto;padding-block:8px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sh-foot{display:flex;gap:8px;padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-top:1px solid var(--line);background:var(--surface)}
+.sh-foot .btn{flex:1}
+.fld{padding-block:14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.fld>label,.fld>.lbl{font-family:var(--display);font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:baseline;gap:8px}
+.lbl .hint{font-family:var(--body);font-weight:400;font-size:13px;text-transform:none;letter-spacing:0;color:var(--muted)}
+.sub{font-size:13px;color:var(--muted);margin-top:2px}
+.txt{width:100%;border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--surface)}
+textarea.txt{min-height:80px;resize:vertical}
+.wind{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.wind-h{display:flex;align-items:center;gap:8px;font-weight:700}
+.wind-h .prev{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--water)}
+.row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* Summary */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.tile .k{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.tile .v{font-family:var(--display);font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile.lead{background:var(--water);border-color:var(--water);color:var(--on-water)}
+.tile.lead .k{color:inherit;opacity:.85}
+.sec-h{font-family:var(--display);font-size:20px;text-transform:uppercase;letter-spacing:.06em;margin:26px 0 10px}
+.bars{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.bar{display:grid;grid-template-columns:minmax(90px,38%) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:14px}
+.bar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .tr{height:12px;background:var(--water-soft);border-radius:3px;overflow:hidden}
+.bar .tr i{display:block;height:100%;background:var(--water);border-radius:3px}
+.bar .vv{font-variant-numeric:tabular-nums;color:var(--muted);min-width:76px;text-align:right}
+.bar .vv b{color:var(--ink)}
+.bar-note{margin:-4px 2px 10px;font-size:13px;color:var(--muted)}
+@media (max-width:560px){.bars{gap:10px}.bar{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}.bar .nm{grid-column:1;grid-row:1}.bar .vv{grid-column:2;grid-row:1;min-width:0}.bar .tr{grid-column:1 / -1;grid-row:2;height:8px}}
+
+/* Settings */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+.panel p{margin:0;color:var(--muted);font-size:14px}
+.opt-list{display:flex;flex-direction:column;gap:4px}
+.opt{display:flex;gap:6px;align-items:center}
+.opt input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface)}
+.opt .cnt{font-size:12px;color:var(--muted);min-width:32px;text-align:right;font-variant-numeric:tabular-nums}
+.ico{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 9px;font-size:13px}
+details.lst{border-top:1px solid var(--line);padding-top:10px}
+details.lst summary{cursor:pointer;font-weight:700;padding:4px 0}
+.dates{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dates label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+
+.rep-title{font-family:var(--display);font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin:0}
+.rep-kv{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:var(--muted)}
+.rep-kv b{color:var(--ink);font-variant-numeric:tabular-nums}
+.facts{margin:0;padding-left:18px;font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.sailor{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px}
+.sailor h4{margin:0;font-size:17px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sailor h4 .d{font-family:var(--display);font-size:20px;color:var(--water)}
+.sailor .meta{font-size:13px;color:var(--muted)}
+.sailor details summary{cursor:pointer;font-size:13px;color:var(--muted)}
+.sailor details p{white-space:pre-wrap;font-size:14px;color:var(--muted);margin:6px 0 0;border-left:3px solid var(--line);padding-left:10px}
+.rep-list{display:flex;flex-direction:column;gap:10px}
+textarea.rep{min-height:110px;line-height:1.45}
+.rep-foot{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
+.rep-foot .btn{font-size:17px;padding:14px 22px}
+.tabs .ti{display:none}
+@media (max-width:520px){.tabs button{font-size:14px;letter-spacing:0;padding:10px 3px}.tabs .tl{display:none}.tabs .ti{display:inline;font-size:18px;line-height:1}}
+@media (max-width:380px){.tabs button{font-size:12.5px;padding:10px 2px}}
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.ev-grid label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.ref{background:var(--surface-2);border-left:3px solid var(--water);border-radius:0 8px 8px 0;padding:8px 12px;font-size:14px;color:var(--muted);white-space:pre-wrap}
+.ref b{color:var(--ink);font-weight:700}
+.ref .rl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--water);margin-bottom:2px}
+.ev-sec h4{margin:0;font-family:var(--display);font-size:18px;text-transform:uppercase;letter-spacing:.04em}
+.chip .ok{color:var(--ok);font-weight:700}
+.chip.on .ok{color:inherit}
+.res-rows{display:flex;flex-direction:column;gap:8px}
+.res-row{display:grid;grid-template-columns:64px auto 64px minmax(0,1fr);gap:6px;align-items:center;padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.res-row .rn{font-weight:600;grid-column:1 / -1}
+.res-row .txt{padding:8px;min-width:0}
+.res-row .rc{grid-column:1 / -1}
+.c-res{font-size:14px}
+.res-tbl{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.res-tbl div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px}
+.res-tbl .pl{font-variant-numeric:tabular-nums;font-weight:700}
+.res-tbl .cl{color:var(--muted)}
+.ni{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+button.sync{background:none;border:0;padding:4px 0;cursor:pointer}
+.pblocks{display:flex;flex-direction:column;gap:8px}
+.pblock{border:1px solid var(--line);border-radius:var(--r);padding:10px;background:var(--surface);display:flex;flex-direction:column;gap:8px}
+.pb-h{display:flex;align-items:center;gap:8px}.pb-h b{flex:1}
+.pb-ctl{display:flex;gap:4px}.pb-ctl .ico{min-width:36px;min-height:34px}
+.pb-m{width:84px;flex:none;border-radius:999px;padding:7px 12px}
+.pcard{cursor:default}
+@media (max-width:760px){
+  header.top .tabs{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--surface);border-top:1px solid var(--line);
+    padding:4px max(4px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px));overflow:visible}
+  header.top .tabs button{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0 4px;border-bottom:0;border-top:3px solid transparent;font-family:var(--body);font-size:10.5px;font-weight:600;letter-spacing:0;text-transform:none;min-width:0}
+  header.top .tabs button.on{border-top-color:var(--buoy);border-bottom:0;color:var(--water)}
+  header.top .tabs .ni{display:block}
+  header.top .tabs .tl{display:block!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  header.top .tabs .ti{display:none!important}
+  main{padding-bottom:170px}
+  .fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))!important}
+  .brand small{display:none}
+  .brand{font-size:22px}
+  .chip{min-height:42px;padding:8px 14px}
+  .sync{font-size:12px;max-width:52%}
+}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.sheet.anim{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px)}}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <div class="brand">Edzésnapló<small>Vitorlás edzői adminisztráció</small></div>
+      <button class="sync" id="sync" type="button"><span class="dot"></span><span>Betöltés…</span></button>
+    </div>
+    <div class="seasons" id="seasons"></div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="log" class="on"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg><span class="tl">Napló</span></button>
+      <button data-tab="plan"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h6"/></svg><span class="tl">Tervek</span></button>
+      <button data-tab="sum"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="tl">Összesítő</span></button>
+      <button data-tab="rep"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><span class="tl">Beszámoló</span></button>
+      <button data-tab="ev"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="tl">Kiértékelés</span></button>
+      <button data-tab="set" aria-label="Beállítások" title="Beállítások"><svg class="ni" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="tl">Beállítások</span></button>
+    </nav>
+  </div>
+</header>
+<main class="wrap" id="main"></main>
+<button class="fab" id="fab">+ Új nap</button>
+<div id="sheet"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+const LS_CACHE='edz.cache.v1', LS_OUT='edz.outbox.v1', LS_SEASON='edz.season';
+const DEF={locations:[],groups:['ILCA'],types:['Edzés','Verseny'],races:[],athletes:[],focus:[],
+  kts:[0,1,2,3,4,5,6,7,8,9,10,12,14,15,16,18,20,22,24,25,28,30,32,35,40,50],
+  dirs:['É','ÉK','K','DK','D','DNY','NY','ÉNY'],hours:[0,1,2,3,4,5,6,7,8],mins:[0,15,30,45],heatsN:[0,1,2,3,4,5,6,7,8],classes:['ILCA 4','ILCA 6','ILCA 7'],intl:['IGEN','EGYENLŐRE NEM','NEM'],waveH:['lapos','20–50 cm','50 cm–1 m','1–2 m','2 m+'],waveT:['lapos','rövid','hosszú','kevert'],motivN:[1,2,3,4,5,6,7,8,9,10],hidden:{},seasons:[]};
+const LISTKEY={loc:'locations',group:'groups',type:'types',race:'races',ath:'athletes',focus:'focus',
+  w1kts:'kts',w2kts:'kts',w1dir:'dirs',w2dir:'dirs',h:'hours',m:'mins',
+  ploc:'locations',pgroup:'groups',ptype:'types',heats:'heatsN',evcls:'classes',evintl:'intl',evmot:'motivN',repath:'athletes',wh:'waveH',wt:'waveT',peloc:'locations',pegroup:'groups',petype:'types',peath:'athletes',peblock:'focus'};
+const NUMLISTS=['kts','hours','mins','heatsN','motivN'];
+const MONTHS=['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+const WD=['V','H','K','Sze','Cs','P','Szo'];
+const WDL=['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
+
+const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>document.querySelector(s);
+
+const STORAGE_OK=(()=>{try{localStorage.setItem('edz.t','1');localStorage.removeItem('edz.t');return true}catch(e){return false}})();
+const cache=Object.assign({sessions:{},options:null,reports:{},evals:{},results:{},deleted:{}},lsGet(LS_CACHE,{}));
+const RES_FILES={};
+(function migrateHeats(c){const re=/^(\d+)\s*futam$/i;let ch=false;
+  for(const x of Object.values(c.sessions||{})){if(x.heats!=null||!Array.isArray(x.focus))continue;const t=x.focus.find(f=>re.test(f));
+    if(t&&(x.type||'').toLowerCase().startsWith('verseny')){x.heats=Number(t.match(re)[1]);x.focus=x.focus.filter(f=>f!==t);ch=true}}
+  if(c.options&&Array.isArray(c.options.focus)){const n=c.options.focus.filter(f=>!re.test(f));if(n.length!==c.options.focus.length){c.options.focus=n;ch=true}}
+  if(ch)lsSet(LS_CACHE,c)})(cache);
+const S={
+  sessions:cache.sessions||{}, options:Object.assign(clone(DEF),cache.options||{}),
+  server:{sessions:undefined,options:undefined},
+  outbox:lsGet(LS_OUT,[]), db:null, dbTried:false, flushing:false, subErr:null,
+  season:lsGet(LS_SEASON,null), tab:'log', filter:'all', form:null,
+  plan:{from:'',to:'',days:[6,0],loc:'',group:'',type:'Edzés',_adding:null},
+  reports:cache.reports||{}, repMonth:null, repGroup:null,
+  repUI:{_adding:null}, results:cache.results||{}, deleted:cache.deleted||{}, pe:null, evals:cache.evals||{}, evPeriod:'oszi', evName:null, evUI:{_adding:null}
+};
+
+/* ---------- helpers ---------- */
+function todayStr(off=0){const d=new Date();d.setDate(d.getDate()+off);return iso(d)}
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function pd(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
+function fmtDate(s){const d=pd(s);return `${d.getFullYear()}. ${MONTHS[d.getMonth()]} ${d.getDate()}., ${WDL[d.getDay()]}`}
+function hm(min){const h=Math.floor(min/60),m=Math.round(min%60);return h+':'+String(m).padStart(2,'0')}
+function hmLong(min){const h=Math.floor(min/60),m=Math.round(min%60);return m?`${h} ó ${m} p`:`${h} ó`}
+function minsOf(s){return (Number(s.h)||0)*60+(Number(s.m)||0)}
+function wHas(w){return !!w&&(w.min!=null||!!w.dir||!!(w.extra&&w.extra.trim()))}
+function wStr(w){if(!wHas(w))return '';const p=[];
+  if(w.min!=null)p.push(w.max!=null&&w.max!==w.min?`${w.min}-${w.max} kts`:`${w.min} kts`);
+  if(w.dir)p.push(w.dir); if(w.extra&&w.extra.trim())p.push(w.extra.trim()); return p.join(' ')}
+function windFull(s){const a=wStr(s.w1),b=wStr(s.w2);return a&&b?a+' → '+b:(a||b)}
+const WAVE_FROM=2027;
+function waveStr(s){return [s.wh,s.wt].filter(Boolean).join(', ')}
+function seasonOf(s){return Number(s.date.slice(0,4))}
+function allSeasons(){const set=new Set((S.options.seasons||[]).map(Number));Object.values(S.sessions).forEach(s=>set.add(seasonOf(s)));
+  if(!set.size)set.add(new Date().getFullYear());return [...set].sort((a,b)=>a-b)}
+function curSeason(){const all=allSeasons();if(S.season&&all.includes(Number(S.season)))return Number(S.season);
+  const y=new Date().getFullYear();return all.includes(y)?y:all[all.length-1]}
+function seasonSessions(y){return Object.entries(S.sessions).map(([id,s])=>({id,...s})).filter(s=>seasonOf(s)===y)
+  .sort((a,b)=>a.date.localeCompare(b.date)||String(a.created||0).localeCompare(String(b.created||0)))}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
+function uid(){return 's'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+/* ---------- sync layer (offline-first) ---------- */
+const COLS=['sessions','reports','evals','results'];
+const HASH={};let LOADED=false;
+function recHash(r){if(!r)return '';const o={};for(const k of Object.keys(r).sort())if(k!=='_u'&&k!=='updated'&&k[0]!=='_')o[k]=r[k];return JSON.stringify(o)}
+function recT(r){return r?Math.max(Number(r._u)||0,Number(r.updated)||0):0}
+function stampAll(bump){const now=Date.now();
+  for(const c of COLS)for(const [k,r] of Object.entries(S[c])){const h=recHash(r),hk=c+'/'+k;
+    if(bump&&LOADED&&HASH[hk]!==h){r._u=now;if(c==='sessions')r.updated=now}HASH[hk]=h}
+  const oh=recHash(S.options);if(bump&&LOADED&&HASH.options!==oh)S.options._u=now;HASH.options=oh}
+function persist(){lsSet(LS_CACHE,{sessions:S.sessions,options:S.options,reports:S.reports,evals:S.evals,results:S.results,deleted:S.deleted})}
+function saveCache(){stampAll(true);persist();if(typeof scheduleSync==='function')scheduleSync()}
+function snapshot(){return {app:'edzesnaplo',version:2,sessions:S.sessions,options:S.options,reports:S.reports,evals:S.evals,results:S.results,deleted:S.deleted}}
+/* merge another copy (Drive file or backup) into local state; newest record wins */
+function mergeIn(d,preferIncoming){let ch=false;if(!d||typeof d!=='object')return false;
+  for(const [k,v] of Object.entries(d.deleted||{}))if((S.deleted[k]||0)<v){S.deleted[k]=v;ch=true}
+  for(const c of COLS){const src=d[c]||{};for(const [k,r] of Object.entries(src)){if(!r||typeof r!=='object')continue;const l=S[c][k];
+    if(!l||recT(r)>recT(l)||(preferIncoming&&recT(r)===recT(l)&&recHash(r)!==recHash(l))){S[c][k]=r;ch=true}}}
+  for(const [p,ts] of Object.entries(S.deleted)){const [c,id]=[p.slice(0,p.indexOf('/')),p.slice(p.indexOf('/')+1)];if(S[c]&&S[c][id]&&recT(S[c][id])<=ts){delete S[c][id];ch=true}}
+  const localDefault=!S.options._u&&!(S.options.athletes||[]).length&&!(S.options.locations||[]).length;
+  if(d.options&&(recT(d.options)>recT(S.options)||(localDefault&&recHash(d.options)!==recHash(S.options))||(preferIncoming&&recT(d.options)===recT(S.options)&&recHash(d.options)!==recHash(S.options)))){
+    const keepLists={};for(const k of ['athletes','focus','races','locations'])keepLists[k]=(S.options[k]||[]).filter(x=>!(d.options[k]||[]).includes(x));
+    S.options=Object.assign(clone(DEF),clone(d.options));if(preferIncoming)for(const [k,v] of Object.entries(keepLists))S.options[k]=[...(S.options[k]||[]),...v];ch=true}
+  if(ch){stampAll(false);persist()}return ch}
+function queue(op){S.outbox=[];S.lastSave=Date.now();saveCache();renderSync()}
+function recompute(){
+  if(S.server.sessions!==undefined){
+    const m={};for(const [k,v] of Object.entries(S.server.sessions))m[k]=v;
+    for(const o of S.outbox){if(!o.path.startsWith('sessions/'))continue;const id=o.path.slice(9);
+      if(o.op==='set')m[id]=o.data;else delete m[id]}
+    S.sessions=m;
+  }
+  if(S.server.options!==undefined){
+    const pend=S.outbox.find(o=>o.path==='meta/options');
+    const base=pend?pend.data:(S.server.options||S.options);
+    S.options=Object.assign(clone(DEF),clone(base));
+  }
+  saveCache();render();
+}
+function putSession(id,data){data.updated=Date.now();S.sessions[id]=data;queue({op:'set',path:'sessions/'+id,data:clone(data)});}
+function delSession(id){delete S.sessions[id];S.deleted['sessions/'+id]=Date.now();queue({op:'del',path:'sessions/'+id});}
+function saveOptions(){queue({op:'set',path:'meta/options',data:clone(S.options)});}
+function withTimeout(p,ms){return Promise.race([p,new Promise((_,r)=>setTimeout(()=>r({code:'unavailable',message:'timeout'}),ms))])}
+async function flush(){
+  if(!S.db||S.flushing||!S.outbox.length)return;
+  S.flushing=true;renderSync();
+  try{
+    while(S.outbox.length){
+      const o=S.outbox[0];
+      try{
+        if(o.op==='set')await withTimeout(S.db.doc(o.path).set(o.data),15000);
+        else await withTimeout(S.db.doc(o.path).delete(),15000);
+        if(S.outbox[0]===o)S.outbox.shift();
+        saveCache();
+      }catch(e){
+        const code=e&&e.code;
+        if(code==='invalid_argument'||code==='quota_exceeded'){S.outbox.shift();saveCache();toast('Egy módosítást nem sikerült menteni: '+(e.message||code));}
+        else break;
+      }
+    }
+  }finally{S.flushing=false;renderSync()}
+}
+function renderSync(){
+  const el=$('#sync');if(!el)return;let cls='',txt='';
+  if(!STORAGE_OK){cls='off';txt='Nem menthető ebben a böngészőben'}
+  else if(!DRIVE.on){cls='wait';txt='Csak ezen az eszközön'}
+  else if(!navigator.onLine){cls='wait';txt='Offline · szinkron később'}
+  else if(DRIVE.status==='auth'){cls='wait';txt='Drive: koppints a szinkronhoz'}
+  else if(DRIVE.status==='busy'){cls='wait';txt='Szinkronizálás…'}
+  else if(DRIVE.status==='err'){cls='off';txt='Drive hiba – koppints'}
+  else if(DRIVE.last){cls='ok';const d=new Date(DRIVE.last);txt='Drive-ra mentve · '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+  else{cls='wait';txt='Drive: kapcsolódás…'}
+  el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
+}
+/* ---------- Google Drive sync ---------- */
+const DEFAULT_CLIENT_ID='%%GOOGLE_CLIENT_ID%%';
+const DATA_NAME='edzesnaplo-adatok.json',FOLDER_NAME='Edzésnapló';
+const DRIVE={on:lsGet('edz.drive.on',false),client:lsGet('edz.drive.client','')||(DEFAULT_CLIENT_ID.startsWith('%%')?'':DEFAULT_CLIENT_ID),
+  token:lsGet('edz.drive.tok',null),folder:lsGet('edz.drive.folder',null),file:lsGet('edz.drive.file',null),last:lsGet('edz.drive.last',0),status:'',err:'',tc:null,busy:false,again:false};
+function tokenOk(){return DRIVE.token&&DRIVE.token.exp>Date.now()+60000}
+function loadGIS(){return new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return res();
+  let sc=document.getElementById('gis');if(!sc){sc=document.createElement('script');sc.id='gis';sc.src='https://accounts.google.com/gsi/client';sc.async=true;document.head.appendChild(sc)}
+  sc.addEventListener('load',()=>res());sc.addEventListener('error',()=>rej(new Error('A Google bejelentkezés nem töltődött be')))})}
+function requestToken(interactive){return new Promise(async(res,rej)=>{
+  if(!DRIVE.client)return rej(new Error('Hiányzik a Google kliens azonosító (Beállítások → Google Drive)'));
+  try{await loadGIS()}catch(e){return rej(e)}
+  const tc=google.accounts.oauth2.initTokenClient({client_id:DRIVE.client,scope:'https://www.googleapis.com/auth/drive.file',
+    callback:r=>{if(r.error)return rej(new Error(r.error));DRIVE.token={v:r.access_token,exp:Date.now()+(Number(r.expires_in)||3600)*1000};lsSet('edz.drive.tok',DRIVE.token);res()},
+    error_callback:e=>rej(new Error(e&&e.type==='popup_closed'?'A bejelentkezés ablakát bezártad':'A bejelentkezés nem sikerült'))});
+  tc.requestAccessToken({prompt:interactive&&!lsGet('edz.drive.granted',false)?'consent':''})})}
+async function gapi(path,opt={}){
+  const r=await fetch('https://www.googleapis.com'+path,{...opt,headers:{Authorization:'Bearer '+DRIVE.token.v,...(opt.headers||{})}});
+  if(r.status===401||r.status===403&&/auth/i.test(r.statusText)){DRIVE.token=null;lsSet('edz.drive.tok',null);const e=new Error('auth');e.auth=true;throw e}
+  if(!r.ok){const t=await r.text().catch(()=>'');const e=new Error('Drive '+r.status+' '+t.slice(0,120));if(r.status===404)e.notFound=true;throw e}
+  return r}
+async function driveFind(q){const r=await gapi('/drive/v3/files?q='+encodeURIComponent(q+' and trashed=false')+'&fields=files(id,name,modifiedTime)&spaces=drive');return (await r.json()).files||[]}
+async function ensureFolder(){if(DRIVE.folder)return DRIVE.folder;
+  const f=await driveFind(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder'`);
+  if(f.length)DRIVE.folder=f[0].id;else{const r=await gapi('/drive/v3/files?fields=id',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:FOLDER_NAME,mimeType:'application/vnd.google-apps.folder'})});DRIVE.folder=(await r.json()).id}
+  lsSet('edz.drive.folder',DRIVE.folder);return DRIVE.folder}
+async function uploadMultipart(meta,blob,id){const b='edz'+Math.random().toString(36).slice(2);
+  const body=new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: ${blob.type||'application/octet-stream'}\r\n\r\n`,blob,`\r\n--${b}--`]);
+  const r=await gapi(id?`/upload/drive/v3/files/${id}?uploadType=multipart&fields=id`:'/upload/drive/v3/files?uploadType=multipart&fields=id',{method:id?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body});
+  return (await r.json()).id}
+async function syncNow(interactive){
+  if(!DRIVE.on||!STORAGE_OK)return;if(DRIVE.busy){DRIVE.again=true;return}
+  if(!navigator.onLine){renderSync();return}
+  if(!tokenOk()){if(!interactive){DRIVE.status='auth';renderSync();return}
+    try{await requestToken(true);lsSet('edz.drive.granted',true)}catch(e){DRIVE.status='err';DRIVE.err=e.message;renderSync();toast(e.message);return}}
+  DRIVE.busy=true;DRIVE.status='busy';renderSync();
+  try{
+    const folder=await ensureFolder();
+    if(!DRIVE.file){const f=await driveFind(`name='${DATA_NAME}' and '${folder}' in parents`);if(f.length){DRIVE.file=f[0].id;lsSet('edz.drive.file',DRIVE.file)}}
+    let remoteTxt='';
+    if(DRIVE.file){try{remoteTxt=await (await gapi(`/drive/v3/files/${DRIVE.file}?alt=media`)).text()}catch(e){if(e.notFound){DRIVE.file=null;lsSet('edz.drive.file',null)}else throw e}}
+    if(remoteTxt){let remote=null;try{remote=JSON.parse(remoteTxt)}catch(e){}if(remote&&mergeIn(remote,false))render()}
+    for(const R of Object.values(S.results)){if(!R.fileKey||R.driveId)continue;const v=await idbGet(R.fileKey).catch(()=>null);if(!v)continue;
+      R.driveId=await uploadMultipart({name:v.name,parents:[folder]},v.blob)}
+    stampAll(true);persist();
+    const out=JSON.stringify(snapshot());
+    if(out!==remoteTxt){const id=await uploadMultipart(DRIVE.file?{}:{name:DATA_NAME,parents:[folder],mimeType:'application/json'},new Blob([out],{type:'application/json'}),DRIVE.file);if(!DRIVE.file){DRIVE.file=id;lsSet('edz.drive.file',id)}}
+    DRIVE.last=Date.now();lsSet('edz.drive.last',DRIVE.last);DRIVE.status='ok';DRIVE.err='';
+  }catch(e){if(e.auth){DRIVE.status='auth'}else{DRIVE.status='err';DRIVE.err=e.message}}
+  finally{DRIVE.busy=false;renderSync();if(S.tab==='set'&&!S.form&&!S.pe)renderSet();if(DRIVE.again){DRIVE.again=false;setTimeout(()=>syncNow(false),500)}}
+}
+let syncT=null;function scheduleSync(){if(!DRIVE.on)return;clearTimeout(syncT);syncT=setTimeout(()=>syncNow(false),2500)}
+async function driveFileBlob(id){const r=await gapi(`/drive/v3/files/${id}?alt=media`);return await r.blob()}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncNow(false)});
+window.addEventListener('online',()=>syncNow(false));
+setInterval(()=>{if(document.visibilityState==='visible')syncNow(false)},60000);
+/* a token expired: the next tap anywhere renews it (browsers only allow the Google popup after a tap) */
+document.addEventListener('click',e=>{if(DRIVE.on&&DRIVE.status==='auth'&&navigator.onLine&&!e.target.closest('#sync'))syncNow(true)},true);
+function connect(){S.dbTried=true;S.db=null;S.outbox=[];stampAll(false);LOADED=true;persist();renderSync();syncNow(false)}
+
+/* ---------- options ---------- */
+function list(name){return S.options[name]||[]}
+function isHidden(name,v){return (S.options.hidden?.[name]||[]).includes(v)}
+function addOption(key,raw){
+  const name=LISTKEY[key];if(!name)return [];
+  const parts=NUMLISTS.includes(name)?[raw]:String(raw).split(',');
+  const added=[];
+  for(let p of parts){
+    p=String(p).replace(/\s+/g,' ').trim();if(!p)continue;
+    let v=p;if(NUMLISTS.includes(name)){v=parseFloat(p.replace(',','.'));if(!isFinite(v)||v<0)continue}
+    const arr=S.options[name]=list(name).slice();
+    if(!arr.includes(v)){arr.push(v);if(NUMLISTS.includes(name))arr.sort((a,b)=>a-b)}
+    if(S.options.hidden?.[name])S.options.hidden[name]=S.options.hidden[name].filter(x=>x!==v);
+    added.push(v);
+  }
+  if(added.length)saveOptions();
+  return added;
+}
+function usage(){const u={};const inc=(n,v)=>{if(v==null||v==='')return;(u[n]=u[n]||{})[v]=(u[n][v]||0)+1};
+  Object.values(S.sessions).forEach(s=>{inc('locations',s.loc);inc('groups',s.group);inc('types',s.type);inc('races',s.race);
+    (s.athletes||[]).forEach(a=>inc('athletes',a));(s.focus||[]).forEach(a=>inc('focus',a));
+    [s.w1,s.w2].forEach(w=>{if(w&&w.dir)w.dir.split('-').forEach(d=>inc('dirs',d))})});return u}
+
+/* ---------- regatta results ---------- */
+function resKey(y,reg){return y+'|'+reg}
+function getRes(y,reg,create){const k=resKey(y,reg);if(!S.results[k]&&create)S.results[k]={entries:{}};const r=S.results[k];if(r)r.entries=r.entries||{};return r}
+function firstName(n){return String(n).trim().split(/\s+/).pop()}
+function huOn(n){const w=String(n).trim();const last=w.split(/\s+/).pop();const l=last.toLowerCase();
+  if(/a$/.test(l))return w.slice(0,-1)+'án';if(/e$/.test(l))return w.slice(0,-1)+'én';
+  const v=(l.match(/[aáoóuúeéiíöőüű]/g)||[]).pop()||'e';
+  return w+(/[aáoóuú]/.test(v)?'on':/[öőüű]/.test(v)?'ön':'en')}
+function huAz(n){const w=String(n).trim();const fw=w.split(/\s+/)[0];
+  return /^[aáeéiíoóöőuúüű]/i.test(w)||(fw===fw.toUpperCase()&&/^[AEIOUÁÉÍÓÖŐÚÜŰFLMNRSX]/.test(fw))?'Az':'A'}
+function resSentence(reg,e){return `${huAz(reg)} ${huOn(reg)} ${e.rank}${e.fleet?'/'+e.fleet:'.'} ${e.fleet?'helyen':'helyen'} végzett${e.cat?` (${e.cat})`:''}.`}
+function regFirstDate(y,reg){const d=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&s.race===reg).map(s=>s.date).sort();return d[0]||'9999'}
+function seasonResults(y){return Object.entries(S.results).filter(([k])=>Number(k.split('|')[0])===y).map(([k,v])=>({reg:k.slice(k.indexOf('|')+1),...v,date:regFirstDate(y,k.slice(k.indexOf('|')+1))})).sort((a,b)=>a.date.localeCompare(b.date))}
+function b64Blob(b64,type){const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type})}
+function idb(){return new Promise((res,rej)=>{if(!window.indexedDB)return rej(new Error('no idb'));const r=indexedDB.open('edzesnaplo',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function idbPut(k,v){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction('files').objectStore('files').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+async function getResFile(key){const v=await idbGet(key).catch(()=>null);if(v)return {name:v.name,blob:v.blob};
+  const R=Object.values(S.results).find(r=>r.fileKey===key);if(R&&R.driveId&&DRIVE.on){if(!tokenOk())await requestToken(true);const blob=await driveFileBlob(R.driveId);const name=R.fileName||'eredmeny';
+    idbPut(key,{name,type:blob.type,blob}).catch(()=>{});return {name,blob}}return null}
+function openResFile(key){
+  const w=window.open('about:blank','_blank');
+  getResFile(key).then(f=>{if(!f){if(w)w.close();toast('A dokumentum nem található ezen az eszközön');return}
+    const url=URL.createObjectURL(f.blob);if(w){w.location.href=url}else saveFile(f.name,f.blob)}).catch(()=>{if(w)w.close();toast('A dokumentum nem nyitható meg')});
+}
+async function attachResFile(y,reg,file){
+  const key='file:'+Date.now().toString(36)+':'+file.name;
+  try{await idbPut(key,{name:file.name,type:file.type,blob:file});const r=getRes(y,reg,true);r.fileKey=key;r.fileName=file.name;saveCache();toast('Eredménylista csatolva')}
+  catch(e){toast('A fájlt nem sikerült elmenteni ebben a böngészőben')}
+}
+function resultBlock(f){
+  const y=Number(f.date.slice(0,4));
+  if(!f.race)return `<div class="fld"><div class="lbl">Eredmények</div><div class="sub">Válaszd ki vagy add meg fent a verseny nevét, utána itt rögzítheted az eredményeket és csatolhatod az eredménylistát.</div></div>`;
+  const R=getRes(y,f.race)||{entries:{}};
+  let h=`<div class="fld"><div class="lbl">Eredmények <span class="hint">a teljes versenyre (${esc(f.race)})</span></div>`;
+  h+=R.fileKey?`<div class="row2"><button type="button" class="chip on" data-resopen="1">Eredménylista megnyitása</button><label class="chip" for="res-file">Csere</label><button type="button" class="chip ghost" data-resdel="1">Eltávolítás</button></div><div class="sub">${esc(R.fileName||'')}</div>`
+    :`<div class="row2"><label class="chip add" for="res-file">+ Eredménylista csatolása (PDF, kép, HTML)</label>${R.url?`<a class="chip on" href="${esc(R.url)}" target="_blank" rel="noopener">Online eredménylista megnyitása</a>`:''}</div>`;
+  h+=`<input class="txt" id="res-url" data-resurl="1" inputmode="url" value="${esc(R.url||'')}" placeholder="vagy illeszd be az online eredménylista linkjét (https://…)">`;
+  h+=`<input type="file" id="res-file" accept=".pdf,.htm,.html,image/*" hidden>`;
+  if(f.athletes.length){h+=`<div class="sub">Helyezés / mezőny létszáma (a saját hajóosztályában) és kategória</div><div class="res-rows">`;
+    f.athletes.forEach((a,i)=>{const e=R.entries[a]||{};
+      h+=`<div class="res-row"><span class="rn">${esc(a)}</span>
+        <input class="txt" data-res="rank" data-ra="${i}" inputmode="numeric" value="${esc(e.rank??'')}" placeholder="hely" aria-label="${esc(a)} helyezés">
+        <span>/</span><input class="txt" data-res="fleet" data-ra="${i}" inputmode="numeric" value="${esc(e.fleet??'')}" placeholder="mezőny" aria-label="${esc(a)} mezőny">
+        <input class="txt" data-res="cls" data-ra="${i}" value="${esc(e.cls||'')}" placeholder="osztály" aria-label="${esc(a)} hajóosztály">
+        <input class="txt rc" data-res="cat" data-ra="${i}" value="${esc(e.cat||'')}" placeholder="kategória, pl. nőiben 1." aria-label="${esc(a)} kategória"></div>`});
+    h+='</div>'}else h+=`<div class="sub">Jelöld be a résztvevőket, és mindegyiküknél megadhatod a helyezést.</div>`;
+  return h+'</div>';
+}
+
+/* ---------- chips ---------- */
+function tgt(ctx){return ctx==='form'?S.form:ctx==='ev'?S.evUI:ctx==='rep'?S.repUI:ctx==='pe'?S.pe:S.plan}
+function rer(ctx){ctx==='form'?renderForm():ctx==='ev'?renderEv():ctx==='rep'?renderRep():ctx==='pe'?renderPlanEditor():renderSet()}
+function chips(ctx,key,values,isOn,opts={}){
+  const lab=opts.label||(v=>v);const name=LISTKEY[key];
+  let h=values.filter(v=>!name||!isHidden(name,v)||isOn(v)).map(v=>{
+    const st=typeof isOn==='function'?isOn(v):false;const cls=st===true?'on':st==='mid'?'mid':'';
+    return `<button type="button" class="chip ${cls}" data-ctx="${ctx}" data-g="${key}" data-v="${esc(v)}">${esc(lab(v))}</button>`}).join('');
+  if(opts.noAdd)return `<div class="chips">${h}</div>`;
+  const target=tgt(ctx);
+  if(target&&target._adding===key){
+    h+=`<div class="addrow"><input id="add-${key}" data-addin="${key}" data-ctx="${ctx}" ${opts.num?'inputmode="decimal"':''} placeholder="${esc(opts.ph||'Új érték')}" autocomplete="off">
+      <button type="button" class="chip on" data-ctx="${ctx}" data-addok="${key}">Hozzáad</button>
+      <button type="button" class="chip ghost" data-ctx="${ctx}" data-addx="${key}">Mégse</button></div>`;
+  }else h+=`<button type="button" class="chip add" data-ctx="${ctx}" data-add="${key}">+ Új</button>`;
+  return `<div class="chips">${h}</div>`;
+}
+
+/* ---------- header ---------- */
+function renderSeasons(){
+  const cur=curSeason();
+  $('#seasons').innerHTML=allSeasons().map(y=>`<button class="chip ${y===cur?'on':''}" data-season="${y}">${y} szezon</button>`).join('')+
+    `<button class="chip add" data-newseason="1">+ Új szezon</button>`;
+}
+function render(){
+  renderSeasons();renderSync();
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.tab));
+  $('#fab').hidden=!(S.tab==='log'||S.tab==='plan');$('#fab').textContent=S.tab==='plan'?'+ Új terv':'+ Új nap';
+  if(S.tab==='log')renderLog();else if(S.tab==='plan')renderPlans();else if(S.tab==='sum')renderSum();else if(S.tab==='rep')renderRep();else if(S.tab==='ev')renderEv();else renderSet();
+  const at=document.querySelector('#tabs button.on');if(at&&at.scrollIntoView)at.scrollIntoView({block:'nearest',inline:'nearest'});
+  if(S.form)renderForm();else if(S.pe)renderPlanEditor();
+}
+
+/* ---------- training plans ---------- */
+function planMins(p){return (p&&p.blocks||[]).reduce((a,b)=>a+(Number(b.min)||0),0)}
+function nextDow(d){const t=new Date();const add=(d-t.getDay()+7)%7||7;t.setDate(t.getDate()+add);return iso(t)}
+function planCard(s){const p=s.plan||{};const d=pd(s.date);
+  return `<div class="card ${s.status==='terv'?'terv':''} ${s.date===todayStr()?'today':''} pcard">
+    <div class="c-date"><b>${d.getDate()}</b><span>${WD[d.getDay()]}</span></div>
+    <div class="c-main"><div class="c-top">${s.type?`<span class="pill ${isVer(s)?'verseny':''}">${esc(s.type)}</span>`:''}<span>${esc([s.loc,s.group].filter(Boolean).join(' · '))}</span><span class="c-num">${esc(MONTHS[d.getMonth()].slice(0,3))}.</span></div>
+      ${p.goal?`<div class="c-race" style="color:var(--ink)">${esc(p.goal)}</div>`:''}
+      ${(p.blocks||[]).length?`<div class="c-focus">${esc(p.blocks.map(b=>b.name+(b.min?` ${b.min}'`:'')).join(' · '))}</div>`:'<div class="c-focus">Még nincs blokk a tervben.</div>'}
+      ${(s.athletes||[]).length?`<div class="c-ath">${s.athletes.length} fő tervezve</div>`:''}
+      <div class="row2" style="margin-top:6px">${s.status==='terv'&&s.date<=todayStr()?`<button class="chip on" data-precord="${esc(s.id)}">Rögzítés a naplóba</button>`:''}<button class="chip" data-pedit="${esc(s.id)}">Terv szerkesztése</button></div></div>
+    <div class="c-time">${planMins(p)?hm(planMins(p)):''}${planMins(p)?'<small>terv</small>':''}</div></div>`}
+function renderPlans(){
+  const all=Object.entries(S.sessions).map(([id,s])=>({id,...s})).filter(s=>s.status==='terv'||(s.plan&&s.date>=todayStr()));
+  const today=todayStr();
+  const due=all.filter(s=>s.status==='terv'&&s.date<=today).sort((a,b)=>b.date.localeCompare(a.date));
+  const next=all.filter(s=>s.date>today).sort((a,b)=>a.date.localeCompare(b.date));
+  let h=`<div class="panel"><h2 class="rep-title">Edzéstervek</h2><p>Itt tervezed meg előre az edzésnapokat: helyszín, résztvevők, cél és a gyakorlatok sorrendje percre. Az edzés után a „Rögzítés a naplóba” gombbal a terv adatai előre kitöltve kerülnek a napi adatlapra, csak a valóságot kell hozzáigazítanod.</p>
+    <div class="row2"><button class="btn" data-pnew="1">+ Új edzésterv</button></div></div>`;
+  h+=`<h3 class="sec-h">Rögzítésre vár <span class="sub">(${due.length})</span></h3>`+(due.length?`<div class="list">${due.map(planCard).join('')}</div>`:`<div class="empty">Nincs lezáratlan tervezett nap.</div>`);
+  h+=`<h3 class="sec-h">Következő napok <span class="sub">(${next.length})</span></h3>`+(next.length?`<div class="list">${next.map(planCard).join('')}</div>`:`<div class="empty">Még nincs előre tervezett nap. Koppints a „+ Új edzésterv” gombra.</div>`);
+  $('#main').innerHTML=h;
+}
+function openPlanEditor(id){
+  let s=id&&S.sessions[id]?clone(S.sessions[id]):null;
+  const last=Object.values(S.sessions).filter(x=>x.status!=='terv').sort((a,b)=>a.date.localeCompare(b.date)).pop();
+  const lastPlan=Object.values(S.sessions).filter(x=>x.plan).sort((a,b)=>a.date.localeCompare(b.date)).pop();
+  S.pe=s?{id,date:s.date,loc:s.loc||'',group:s.group||'',type:s.type||'Edzés',athletes:(s.athletes||[]).slice(),goal:s.plan?.goal||'',blocks:clone(s.plan?.blocks||[]),note:s.plan?.note||'',status:s.status,_adding:null,_confirm:false,_anim:true}
+    :{id:null,date:todayStr(1),loc:last?.loc||'',group:last?.group||'',type:'Edzés',athletes:(lastPlan?.athletes||last?.athletes||[]).slice(),goal:'',blocks:[],note:'',status:'terv',_adding:null,_confirm:false,_anim:true};
+  renderPlanEditor();
+}
+function planText(p){const d=fmtDate(p.date);let t=`${d} – ${[p.loc,p.group].filter(Boolean).join(', ')}${p.type&&p.type!=='Edzés'?' ('+p.type+')':''}`;
+  if(p.goal)t+=`\nCél: ${p.goal}`;if(p.blocks.length)t+='\n'+p.blocks.map((b,i)=>`${i+1}. ${b.name}${b.min?` – ${b.min} perc`:''}${b.note?` (${b.note})`:''}`).join('\n');
+  if(planMins(p))t+=`\nÖsszesen: ${hmLong(planMins(p))}`;if(p.note)t+=`\n${p.note}`;if(p.athletes.length)t+=`\nRésztvevők: ${p.athletes.join(', ')}`;return t}
+function renderPlanEditor(){
+  const p=S.pe;const sh=$('#sheet');const body=sh.querySelector('.sh-body');const st=body?body.scrollTop:0;const an=p._anim;p._anim=false;
+  const u=usage();const focus=list('focus').slice().sort((a,b)=>(u.focus?.[b]||0)-(u.focus?.[a]||0));
+  const prev=Object.entries(S.sessions).filter(([id,x])=>x.plan&&(x.plan.blocks||[]).length&&id!==p.id).sort((a,b)=>b[1].date.localeCompare(a[1].date)).slice(0,6);
+  const quick=[['Ma',todayStr()],['Holnap',todayStr(1)],['Szombat',nextDow(6)],['Vasárnap',nextDow(0)]];
+  sh.innerHTML=`<div class="sheet${an?' anim':''}" role="dialog" aria-label="Edzésterv"><div class="sheet-in">
+  <div class="sh-head"><button class="ico" data-peclose="1">Mégse</button><h2>${p.id?'Terv szerkesztése':'Új edzésterv'}</h2></div>
+  <div class="sh-body">
+    <div class="fld"><div class="lbl">Dátum <span class="hint">${esc(fmtDate(p.date))}</span></div>
+      <div class="chips">${quick.map(([l,d])=>`<button type="button" class="chip ${p.date===d?'on':''}" data-ctx="pe" data-g="pedate" data-v="${d}">${l}</button>`).join('')}
+      <input type="date" class="chip" id="pe-date" value="${esc(p.date)}" aria-label="Dátum választása"></div></div>
+    <div class="fld"><div class="lbl">Helyszín</div>${chips('pe','peloc',list('locations'),v=>v===p.loc,{ph:'pl. BFYC'})}</div>
+    <div class="fld"><div class="lbl">Csoport</div>${chips('pe','pegroup',list('groups'),v=>v===p.group,{ph:'pl. Optimist'})}</div>
+    <div class="fld"><div class="lbl">Típus</div>${chips('pe','petype',list('types'),v=>v===p.type,{ph:'pl. Tábor'})}</div>
+    <div class="fld"><div class="lbl">Tervezett résztvevők <span class="hint">${p.athletes.length} fő</span></div>
+      <div class="row2"><button type="button" class="chip ghost" data-peall="1">Mindenki</button><button type="button" class="chip ghost" data-penone="1">Senki</button></div>
+      ${chips('pe','peath',list('athletes'),v=>p.athletes.includes(v),{ph:'Vezetéknév Keresztnév'})}</div>
+    <div class="fld"><label for="pe-goal">Az edzés célja</label><textarea class="txt" id="pe-goal" data-pef="goal" placeholder="pl. Rajtvonal-érzet erős szélben, bójavételek">${esc(p.goal)}</textarea></div>
+    <div class="fld"><div class="lbl">Gyakorlatok <span class="hint">${p.blocks.length?`${p.blocks.length} blokk · ${hmLong(planMins(p))}`:'koppints egy gyakorlatra a hozzáadáshoz'}</span></div>
+      <div class="pblocks">${p.blocks.map((b,i)=>`<div class="pblock"><div class="pb-h"><b>${i+1}. ${esc(b.name)}</b>
+          <span class="pb-ctl"><button type="button" class="ico" data-pbup="${i}" ${i?'':'disabled'} aria-label="Feljebb">↑</button><button type="button" class="ico" data-pbdn="${i}" ${i<p.blocks.length-1?'':'disabled'} aria-label="Lejjebb">↓</button><button type="button" class="ico" data-pbx="${i}" aria-label="Törlés">✕</button></span></div>
+        <div class="chips">${[10,15,20,30,45,60].map(m=>`<button type="button" class="chip ${Number(b.min)===m?'on':''}" data-pbmin="${i}" data-v="${m}">${m}'</button>`).join('')}
+          <input class="txt pb-m" data-pbm="${i}" inputmode="numeric" value="${esc(b.min||'')}" placeholder="perc" aria-label="${esc(b.name)} perc"></div>
+        <input class="txt" data-pbn="${i}" value="${esc(b.note||'')}" placeholder="Megjegyzés (pl. 3 kör, csak bal oldal)"></div>`).join('')}</div>
+      <div class="sub">Gyakorlat hozzáadása</div>${chips('pe','peblock',focus,()=>false,{ph:'pl. ketrec'})}</div>
+    <div class="fld"><label for="pe-note">Megjegyzés</label><textarea class="txt" id="pe-note" data-pef="note" placeholder="Felszerelés, logisztika, motoros, időpont…">${esc(p.note)}</textarea></div>
+    ${prev.length?`<div class="fld"><div class="lbl">Másolás korábbi tervből</div><div class="chips">${prev.map(([id,x])=>`<button type="button" class="chip" data-pecopy="${esc(id)}">${esc(x.date.slice(5).replace('-','.'))}. ${esc((x.plan.goal||x.plan.blocks.map(b=>b.name).join(', ')).slice(0,28))}</button>`).join('')}</div></div>`:''}
+    <div class="fld"><div class="row2"><button type="button" class="btn sec" data-pecopytxt="1">Terv szövegének másolása</button>
+      ${p.id?(p._confirm?`<span>Biztosan törlöd a tervet?</span><button type="button" class="btn danger" data-pedel="1">Igen, törlés</button><button type="button" class="btn sec" data-pedelx="1">Mégse</button>`:`<button type="button" class="btn sec" data-pedelask="1">Terv törlése</button>`):''}</div>
+      <div class="sub">A szöveget beillesztheted a csapat csoportjába.</div></div>
+  </div>
+  <div class="sh-foot"><button class="btn sec" data-peclose="1">Mégse</button><button class="btn" data-pesave="1">Terv mentése</button></div></div></div>`;
+  const nb=sh.querySelector('.sh-body');nb.scrollTop=st;if(p._adding){const i=document.getElementById('add-'+p._adding);if(i)i.focus({preventScroll:true})}
+}
+function savePlan(){const p=S.pe;const id=p.id||uid();const base=p.id&&S.sessions[p.id]?clone(S.sessions[p.id]):{race:'',focus:[],w1:null,w2:null,h:null,m:null,note:'',created:Date.now()};
+  const plan={goal:p.goal.trim(),blocks:p.blocks.map(b=>({name:b.name,min:Number(b.min)||0,note:(b.note||'').trim()})),note:p.note.trim()};
+  const d={...base,date:p.date,loc:p.loc,group:p.group,type:p.type,athletes:p.athletes.slice(),plan,status:base.status||'terv'};
+  if(!p.id)d.status='terv';putSession(id,d);S.pe=null;$('#sheet').innerHTML='';render();toast('Terv mentve')}
+
+/* ---------- log ---------- */
+function renderLog(){
+  const y=curSeason();const all=seasonSessions(y);
+  all.forEach((s,i)=>s.n=i+1);
+  const rows=all.filter(s=>S.filter==='all'||(S.filter==='terv'?s.status==='terv':s.status!=='terv'));
+  const nT=all.filter(s=>s.status==='terv').length;
+  let h=`<div class="toolbar">
+    ${['all','kesz','terv'].map(f=>`<button class="chip ${S.filter===f?'on':''}" data-filter="${f}">${{all:'Mind',kesz:'Lezárt',terv:'Tervezett'}[f]} <span class="num">${f==='all'?all.length:f==='terv'?nT:all.length-nT}</span></button>`).join('')}
+    <span class="sp"></span>
+    <button class="chip" data-export="1">Excel letöltése</button></div>`;
+  if(!Object.keys(S.sessions).length){
+    h=`<div class="empty"><h3>Üdv az Edzésnaplóban!</h3>Ezen az eszközön még nincsenek adatok. Kapcsold össze a Google Drive-oddal, vagy töltsd be az átköltöztető / mentésfájlt.
+      <div class="chips"><button class="chip on" data-tab="set">Kapcsolódás a Google Drive-hoz</button><label class="chip" for="restore-first">Mentésfájl betöltése</label></div>
+      <input type="file" id="restore-first" accept=".json,application/json" multiple hidden></div>`;
+    $('#main').innerHTML=h;return;
+  }
+  if(!all.length){
+    h+=`<div class="empty"><h3>${y} szezon</h3>Még nincs bejegyzés ebben a szezonban.<br>Rögzíts egy napot, vagy tervezd be előre az edzésnapokat.
+      <div class="chips"><button class="chip on" data-new="1">+ Új nap</button><button class="chip" data-goplan="1">Edzésnapok tervezése</button></div></div>`;
+    $('#main').innerHTML=h;return;
+  }
+  if(!rows.length){h+=`<div class="empty">Nincs ilyen bejegyzés.</div>`;$('#main').innerHTML=h;return}
+  const today=todayStr();let curM='';const byM={};
+  rows.forEach(s=>{const k=s.date.slice(0,7);(byM[k]=byM[k]||[]).push(s)});
+  for(const [k,arr] of Object.entries(byM)){
+    const mm=arr.filter(s=>s.status!=='terv').reduce((a,s)=>a+minsOf(s),0);
+    h+=`<div class="month"><h2>${MONTHS[Number(k.slice(5))-1]}</h2><span>${arr.length} nap · ${hmLong(mm)} vízen</span></div><div class="list">`;
+    for(const s of arr){
+      const d=pd(s.date);const terv=s.status==='terv';const ver=(s.type||'').toLowerCase().startsWith('verseny');
+      const ath=s.athletes||[];
+      h+=`<button class="card ${terv?'terv':''} ${s.date===today?'today':''}" data-open="${esc(s.id)}" id="c-${esc(s.id)}">
+        <div class="c-date"><b>${d.getDate()}</b><span>${WD[d.getDay()]}</span></div>
+        <div class="c-main">
+          <div class="c-top">${s.type?`<span class="pill ${ver?'verseny':''}">${esc(s.type)}</span>`:''}${terv?'<span class="pill terv">Tervezett</span>':''}${s.plan&&(s.plan.blocks||[]).length?'<span class="pill">Terv</span>':''}
+            <span>${esc([s.loc,s.group].filter(Boolean).join(' · '))}</span><span class="c-num">#${s.n}</span></div>
+          ${s.race||s.heats!=null?`<div class="c-race">${esc([s.race,s.heats!=null?s.heats+' futam':''].filter(Boolean).join(' · '))}</div>`:''}
+          ${windFull(s)||waveStr(s)?`<div class="c-wind">${esc([windFull(s),waveStr(s)?'hullám: '+waveStr(s):''].filter(Boolean).join(' · '))}</div>`:''}
+          ${(()=>{if(!s.race)return '';const R=getRes(seasonOf(s),s.race);if(!R)return '';const es=(s.athletes||[]).filter(a=>R.entries[a]&&R.entries[a].rank).sort((a,b)=>R.entries[a].rank-R.entries[b].rank);
+        if(!es.length&&!R.fileKey&&!R.url)return '';return `<div class="c-res">${es.length?'Eredmény: '+esc(es.map(a=>`${firstName(a)} ${R.entries[a].rank}${R.entries[a].fleet?'/'+R.entries[a].fleet:'.'}`).join(' · ')):''}${R.fileKey||R.url?(es.length?' · ':'')+'eredménylista csatolva':''}</div>`})()}
+      ${(s.focus||[]).length?`<div class="c-focus">${esc(s.focus.join(', '))}</div>`:''}
+          ${ath.length?`<div class="c-ath">${ath.length} fő: ${esc(ath.join(', '))}</div>`:''}
+          ${s.note?`<div class="c-focus">${esc(s.note)}</div>`:''}
+        </div>
+        <div class="c-time">${terv?'':hm(minsOf(s))}${terv?'':'<small>vízen</small>'}</div>
+      </button>`;
+    }
+    h+='</div>';
+  }
+  $('#main').innerHTML=h;
+}
+
+/* ---------- form ---------- */
+function blankW(){return {min:null,max:null,dir:'',extra:''}}
+function openForm(id,preset){
+  let s;
+  if(id&&S.sessions[id])s=clone(S.sessions[id]);
+  else{const last=seasonSessions(curSeason()).filter(x=>x.status!=='terv').pop()||Object.values(S.sessions).filter(x=>x.status!=='terv').sort((a,b)=>a.date.localeCompare(b.date)).pop();
+    s={date:todayStr(),status:'kesz',loc:last?.loc||'',group:last?.group||'',type:'Edzés',race:'',athletes:[],w1:blankW(),w2:null,focus:[],h:null,m:null,note:'',wh:'',wt:'',...(preset||{})};}
+  s.w1=Object.assign(blankW(),s.w1||{});s.w2=Object.assign(blankW(),s.w2||{});
+  if(id&&s.status==='terv'){s.status='kesz';if(s.plan&&!(s.focus||[]).length)s.focus=[...new Set((s.plan.blocks||[]).map(b=>b.name).filter(Boolean))]}
+  s._id=id||null;s._adding=null;s._anim=true;s._confirm=false;s._showW2=wHas(s.w2);
+  S.form=s;renderForm();
+}
+function windBlock(n){
+  const f=S.form,w=f['w'+n];
+  const kOn=v=>{if(w.min==null)return false;if(v===w.min||v===w.max)return true;if(w.max!=null&&v>Math.min(w.min,w.max)&&v<Math.max(w.min,w.max))return 'mid';return false};
+  const dirs=w.dir?w.dir.split('-'):[];
+  return `<div class="wind"><div class="wind-h">${n===1?'1. szél':'2. szél (változás után)'}<span class="prev">${esc(wStr(w)||'—')}</span>
+    ${n===2?`<button type="button" class="ico" data-w2x="1">Eltávolítás</button>`:''}</div>
+    <div class="sub">Erősség (kts): első koppintás a legkisebb, második a legnagyobb érték</div>
+    ${chips('form','w'+n+'kts',list('kts'),kOn,{num:true,ph:'pl. 45'})}
+    <div class="sub">Irány: legfeljebb kettő (pl. É-ÉNY)</div>
+    ${chips('form','w'+n+'dir',list('dirs'),v=>dirs.includes(v),{ph:'pl. változó'})}
+    <input class="txt" id="w${n}extra" data-wextra="${n}" value="${esc(w.extra)}" placeholder="Egyéb (pl. cső, lökéses, zivatar)">
+  </div>`;
+}
+function renderForm(){
+  const f=S.form;const sh=$('#sheet');const body=sh.querySelector('.sh-body');const st=body?body.scrollTop:0;
+  const ver=(f.type||'').toLowerCase().startsWith('verseny');
+  const lastAth=(()=>{const prev=Object.values(S.sessions).filter(s=>s.date<f.date&&(s.athletes||[]).length).sort((a,b)=>b.date.localeCompare(a.date))[0];return prev?prev.athletes:null})();
+  const u=usage();
+  const athOrder=list('athletes');
+  const an=f._anim;f._anim=false;
+  sh.innerHTML=`<div class="sheet${an?' anim':''}" role="dialog" aria-label="Bejegyzés"><div class="sheet-in">
+  <div class="sh-head"><button class="ico" data-close="1">Mégse</button><h2>${f._id?'Nap szerkesztése':'Új nap'}</h2></div>
+  <div class="sh-body">
+    ${f.plan&&((f.plan.blocks||[]).length||f.plan.goal)?`<div class="fld"><div class="ref"><span class="rl">Edzésterv</span>${f.plan.goal?`<b>${esc(f.plan.goal)}</b>\n`:''}${esc((f.plan.blocks||[]).map((b,i)=>`${i+1}. ${b.name}${b.min?` – ${b.min} perc`:''}${b.note?` (${b.note})`:''}`).join('\n'))}${planMins(f.plan)?`\nTervezett idő: ${hmLong(planMins(f.plan))}`:''}</div><div class="sub">A fókusz gombjai a terv blokkjaiból vannak kijelölve – vedd ki, ami elmaradt, add hozzá, ami még volt.</div></div>`:''}
+    <div class="fld"><div class="lbl">Állapot</div>
+      <div class="chips">${[['kesz','Lezárt (megtörtént)'],['terv','Tervezett']].map(([v,l])=>`<button type="button" class="chip ${f.status===v?'on':''}" data-ctx="form" data-g="status" data-v="${v}">${l}</button>`).join('')}</div></div>
+    <div class="fld"><div class="lbl">Dátum <span class="hint">${esc(fmtDate(f.date))}</span></div>
+      <div class="chips">${[['-1','Tegnap'],['0','Ma'],['1','Holnap']].map(([o,l])=>`<button type="button" class="chip ${f.date===todayStr(+o)?'on':''}" data-ctx="form" data-g="dateq" data-v="${o}">${l}</button>`).join('')}
+      <input type="date" class="chip" id="f-date" value="${esc(f.date)}" aria-label="Dátum választása"></div></div>
+    <div class="fld"><div class="lbl">Helyszín</div>${chips('form','loc',list('locations'),v=>v===f.loc,{ph:'pl. BFYC'})}</div>
+    <div class="fld"><div class="lbl">Csoport</div>${chips('form','group',list('groups'),v=>v===f.group,{ph:'pl. Optimist'})}</div>
+    <div class="fld"><div class="lbl">Edzés / Verseny</div>${chips('form','type',list('types'),v=>v===f.type,{ph:'pl. Tábor'})}
+      ${ver?`<div class="sub">Verseny neve</div>${chips('form','race',list('races'),v=>v===f.race,{ph:'pl. Kékszalag'})}
+      <div class="sub">Futamok száma</div>${chips('form','heats',list('heatsN'),v=>v===f.heats,{num:true,ph:'pl. 10'})}`:''}</div>
+    ${ver?resultBlock(f):''}
+    <div class="fld"><div class="lbl">Résztvevők <span class="hint">${f.athletes.length} fő kiválasztva</span></div>
+      <div class="row2">${lastAth?`<button type="button" class="chip" data-lastath="1">Mint legutóbb (${lastAth.length} fő)</button>`:''}
+        <button type="button" class="chip ghost" data-noath="1">Senki</button></div>
+      ${chips('form','ath',athOrder,v=>f.athletes.includes(v),{ph:'Vezetéknév Keresztnév (több: vesszővel)'})}</div>
+    <div class="fld"><div class="lbl">Meteo</div>
+      ${windBlock(1)}
+      ${f._showW2?windBlock(2):`<button type="button" class="chip add" data-w2="1">+ Szélváltozás (2. szél)</button>`}
+      ${Number(f.date.slice(0,4))>=WAVE_FROM||f.wh||f.wt?`<div class="sub">Hullámmagasság</div>${chips('form','wh',list('waveH'),v=>v===f.wh,{ph:'pl. 30 cm'})}
+      <div class="sub">Hullámtípus</div>${chips('form','wt',list('waveT'),v=>v===f.wt,{ph:'pl. keresztező'})}`:''}</div>
+    <div class="fld"><div class="lbl">Fókusz <span class="hint">több is választható</span></div>
+      ${chips('form','focus',list('focus').slice().sort((a,b)=>(u.focus?.[b]||0)-(u.focus?.[a]||0)),v=>f.focus.includes(v),{ph:'pl. rajtok, futamok'})}</div>
+    <div class="fld"><div class="lbl">Vízen töltött idő <span class="hint">${f.h==null&&f.m==null?'nincs megadva':hmLong(minsOf(f))}</span></div>
+      <div class="sub">Óra</div>${chips('form','h',list('hours'),v=>v===f.h,{num:true,ph:'pl. 9'})}
+      <div class="sub">Perc</div>${chips('form','m',list('mins'),v=>v===f.m,{num:true,ph:'pl. 20'})}</div>
+    <div class="fld"><label for="f-note">Megjegyzés</label><textarea class="txt" id="f-note" placeholder="Bármi, ami fontos volt aznap">${esc(f.note||'')}</textarea></div>
+    ${f._id?`<div class="fld"><div class="row2">${f._confirm?`<span>Biztosan törlöd ezt a napot?</span><button type="button" class="btn danger" data-del="1">Igen, törlés</button><button type="button" class="btn sec" data-delx="1">Mégse</button>`:`<button type="button" class="btn sec" data-delask="1">Nap törlése</button>`}</div></div>`:''}
+  </div>
+  <div class="sh-foot"><button class="btn sec" data-close="1">Mégse</button><button class="btn" data-save="1">Mentés</button></div>
+  </div></div>`;
+  const nb=sh.querySelector('.sh-body');nb.scrollTop=st;
+  if(f._adding){const i=document.getElementById('add-'+f._adding);if(i)i.focus({preventScroll:true})}
+}
+function closeForm(){S.form=null;$('#sheet').innerHTML=''}
+function saveForm(){
+  const f=S.form;const d={date:f.date,status:f.status,loc:f.loc||'',group:f.group||'',type:f.type||'',
+    race:(f.type||'').toLowerCase().startsWith('verseny')?(f.race||''):'',
+    heats:(f.type||'').toLowerCase().startsWith('verseny')&&f.heats!=null?f.heats:null,
+    athletes:f.athletes.slice(),focus:f.focus.slice(),
+    w1:wHas(f.w1)?clone(f.w1):null,w2:wHas(f.w2)?clone(f.w2):null,
+    h:f.h,m:f.m,wh:f.wh||'',wt:f.wt||'',note:(f.note||'').trim(),created:S.sessions[f._id]?.created||Date.now()};
+  if(d.w1&&!d.w1.extra)delete d.w1.extra; if(d.w2&&!d.w2.extra)delete d.w2.extra;
+  if(f.plan)d.plan=clone(f.plan);
+  const id=f._id||uid();putSession(id,d);
+  const y=seasonOf(d);if(y!==curSeason()){S.season=y;lsSet(LS_SEASON,y)}
+  closeForm();render();toast('Mentve');
+  setTimeout(()=>{const c=document.getElementById('c-'+id);if(c)c.scrollIntoView({block:'center'})},50);
+}
+
+/* ---------- chip handling (form + planner) ---------- */
+function handleChip(ctx,key,raw){
+  const t=tgt(ctx);if(!t)return;
+  const name=LISTKEY[key];const num=NUMLISTS.includes(name);
+  const v=num?Number(raw):raw;
+  const single=(k)=>{t[k]=t[k]===v?'':v};
+  switch(key){
+    case 'status':t.status=v;break;
+    case 'dateq':t.date=todayStr(Number(raw));break;
+    case 'loc':case 'group':case 'type':case 'race':single(key);break;
+    case 'ploc':t.loc=t.loc===v?'':v;break;
+    case 'pgroup':t.group=t.group===v?'':v;break;
+    case 'ptype':t.type=t.type===v?'':v;break;
+    case 'wh':case 'wt':t[key]=t[key]===v?'':v;break;
+    case 'peloc':t.loc=t.loc===v?'':v;break;case 'pegroup':t.group=t.group===v?'':v;break;case 'petype':t.type=t.type===v?'':v;break;
+    case 'peath':t.athletes=t.athletes.includes(v)?t.athletes.filter(x=>x!==v):[...t.athletes,v];break;
+    case 'peblock':t.blocks.push({name:v,min:20,note:''});break;
+    case 'pedate':t.date=raw;break;
+    case 'repath':{const r=getRep(S.repGroup,S.repMonth);if(!r.extra.includes(v))r.extra.push(v);r.skip=r.skip.filter(x=>x!==v);saveCache();break}
+    case 'evcls':{const e=curEval();e.cls=e.cls===v?'':v;saveCache();break}
+    case 'evintl':{const e=curEval();e.intl=e.intl===v?'':v;saveCache();break}
+    case 'evmot':{const e=curEval();e.motiv=String(e.motiv)===String(v)?'':String(v);saveCache();break}
+    case 'pday':{const n=Number(raw);t.days=t.days.includes(n)?t.days.filter(x=>x!==n):[...t.days,n];break}
+    case 'ath':t.athletes=t.athletes.includes(v)?t.athletes.filter(x=>x!==v):[...t.athletes,v];break;
+    case 'focus':t.focus=t.focus.includes(v)?t.focus.filter(x=>x!==v):[...t.focus,v];break;
+    case 'h':t.h=t.h===v?null:v;break;
+    case 'heats':t.heats=t.heats===v?null:v;break;
+    case 'm':t.m=t.m===v?null:v;break;
+    default:{
+      const mm=key.match(/^w([12])(kts|dir)$/);if(!mm)break;const w=t['w'+mm[1]];
+      if(mm[2]==='kts'){
+        if(w.min==null){w.min=v;w.max=null}
+        else if(w.max==null){ if(v===w.min){w.min=null} else if(v<w.min){w.max=w.min;w.min=v} else w.max=v }
+        else {w.min=v;w.max=null}
+      }else{
+        let cur=w.dir?w.dir.split('-'):[];
+        if(cur.includes(v))cur=cur.filter(x=>x!==v);else if(cur.length<2)cur.push(v);else cur=[v];
+        w.dir=cur.join('-');
+      }
+    }
+  }
+}
+function selectAdded(ctx,key,vals){
+  const t=tgt(ctx);
+  for(const v of vals){
+    if(key==='ath'){if(!t.athletes.includes(v))t.athletes.push(v)}
+    else if(key==='focus'){if(!t.focus.includes(v))t.focus.push(v)}
+    else if(/^w[12]kts$/.test(key)||/^w[12]dir$/.test(key))handleChip(ctx,key,String(v));
+    else if(['loc','group','type','race'].includes(key))t[key]=v;
+    else if(key==='ploc')t.loc=v; else if(key==='pgroup')t.group=v; else if(key==='ptype')t.type=v;
+    else if(key==='h'||key==='m'||key==='heats')t[key]=v;
+    else if(key==='wh'||key==='wt')t[key]=v;
+    else if(key==='peloc')t.loc=v;else if(key==='pegroup')t.group=v;else if(key==='petype')t.type=v;
+    else if(key==='peath'){if(!t.athletes.includes(v))t.athletes.push(v)}else if(key==='peblock')t.blocks.push({name:v,min:20,note:''});
+    else if(key==='repath'){const r=getRep(S.repGroup,S.repMonth);if(!r.extra.includes(v))r.extra.push(v);r.skip=r.skip.filter(x=>x!==v);saveCache()}
+    else if(key==='evcls'){curEval().cls=v;saveCache()} else if(key==='evintl'){curEval().intl=v;saveCache()} else if(key==='evmot'){curEval().motiv=String(v);saveCache()}
+  }
+}
+function doAdd(ctx,key){
+  const inp=document.getElementById('add-'+key);const val=inp?inp.value:'';
+  const t=tgt(ctx);t._adding=null;
+  const added=addOption(key,val);selectAdded(ctx,key,added);
+  rer(ctx);
+}
+
+/* ---------- summary ---------- */
+function renderSum(){
+  const y=curSeason();const all=seasonSessions(y);const done=all.filter(s=>s.status!=='terv');
+  const tot=done.reduce((a,s)=>a+minsOf(s),0);
+  const isV=s=>(s.type||'').toLowerCase().startsWith('verseny');
+  const nV=done.filter(isV).length,nE=done.length-nV,nT=all.length-done.length;
+  const nH=done.reduce((a,s)=>a+(Number(s.heats)||0),0);
+  let h=`<div class="tiles">
+    <div class="tile lead"><div class="k">Vízen töltött idő</div><div class="v">${hmLong(tot)}</div></div>
+    <div class="tile"><div class="k">Edzésnap</div><div class="v">${nE}</div></div>
+    <div class="tile"><div class="k">Versenynap</div><div class="v">${nV}</div></div>
+    <div class="tile"><div class="k">Futamok</div><div class="v">${nH}</div></div>
+    <div class="tile"><div class="k">Tervezett, hátralévő</div><div class="v">${nT}</div></div></div>`;
+  if(!done.length){h+=`<div class="empty" style="margin-top:16px">A ${y} szezonban még nincs lezárt nap. Az összesítő a lezárt napokból számol.</div>`;$('#main').innerHTML=h;return}
+  const byM={},dM={};done.forEach(s=>{const k=Number(s.date.slice(5,7))-1;byM[k]=(byM[k]||0)+minsOf(s);dM[k]=(dM[k]||0)+1});
+  const mx=Math.max(...Object.values(byM),1);
+  h+=`<h3 class="sec-h">Vízen töltött idő havonta</h3><div class="bars">`+Object.keys(byM).sort((a,b)=>a-b).map(k=>
+    `<div class="bar"><span class="nm">${MONTHS[k]}</span><span class="tr"><i style="width:${(byM[k]/mx*100).toFixed(1)}%"></i></span><span class="vv"><b>${dM[k]} nap</b> · ${hmLong(byM[k])}</span></div>`).join('')+`</div>`;
+  const pct=(a,b)=>b?Math.round(a/b*100):0;
+  const attDays=done.filter(s=>(s.athletes||[]).length);
+  const at={};attDays.forEach(s=>(s.athletes||[]).forEach(a=>{at[a]=at[a]||{n:0,m:0};at[a].n++;at[a].m+=minsOf(s)}));
+  const arr=Object.entries(at).sort((a,b)=>b[1].n-a[1].n||a[0].localeCompare(b[0],'hu'));
+  h+=`<h3 class="sec-h">Részvétel versenyzőnként</h3><p class="bar-note">A ${attDays.length} lezárt nap közül, ahol rögzítetted a résztvevőket.</p><div class="bars">`+(arr.length?arr.map(([n,v])=>
+    `<div class="bar"><span class="nm">${esc(n)}</span><span class="tr"><i style="width:${pct(v.n,attDays.length)}%"></i></span><span class="vv"><b>${pct(v.n,attDays.length)}%</b> · ${v.n}/${attDays.length} nap · ${hm(v.m)}</span></div>`).join(''):'<p>Nincs rögzített résztvevő.</p>')+`</div>`;
+  const trDays=done.filter(s=>!isV(s)&&(s.focus||[]).length);
+  const fc={};trDays.forEach(s=>[...new Set(s.focus)].forEach(f=>{fc[f]=(fc[f]||0)+1}));
+  const fa=Object.entries(fc).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'hu'));
+  h+=`<h3 class="sec-h">Fókusz az edzésnapokon</h3><p class="bar-note">A ${trDays.length} lezárt edzésnap közül, ahol rögzítetted a fókuszt.</p><div class="bars">`+(fa.length?fa.map(([n,c])=>
+    `<div class="bar"><span class="nm" title="${esc(n)}">${esc(n)}</span><span class="tr"><i style="width:${pct(c,trDays.length)}%"></i></span><span class="vv"><b>${pct(c,trDays.length)}%</b> · ${c}/${trDays.length} nap</span></div>`).join(''):'<p>Nincs rögzített fókusz.</p>')+`</div>`;
+  for(const [k,lbl] of [['wh','Hullámmagasság'],['wt','Hullámtípus']]){const wd=done.filter(s=>s[k]);if(!wd.length)continue;
+    const c={};wd.forEach(s=>{c[s[k]]=(c[s[k]]||0)+1});const ord=list(k==='wh'?'waveH':'waveT');
+    const arr=Object.entries(c).sort((a,b)=>{const ia=ord.indexOf(a[0]),ib=ord.indexOf(b[0]);return (ia<0?99:ia)-(ib<0?99:ib)});
+    h+=`<h3 class="sec-h">${lbl}</h3><p class="bar-note">A ${wd.length} lezárt nap közül, ahol rögzítetted.</p><div class="bars">`+arr.map(([n,v])=>
+      `<div class="bar"><span class="nm">${esc(n)}</span><span class="tr"><i style="width:${pct(v,wd.length)}%"></i></span><span class="vv"><b>${pct(v,wd.length)}%</b> · ${v} nap</span></div>`).join('')+`</div>`}
+  const sr=seasonResults(curSeason()).filter(r=>Object.keys(r.entries||{}).length||r.fileKey||r.url);S._sumRes=sr.map(r=>r.fileKey||'');
+  if(sr.length){h+=`<h3 class="sec-h">Versenyeredmények</h3><div class="rep-list">`+sr.map((r,i)=>{const es=Object.entries(r.entries||{}).sort((a,b)=>String(a[1].cls).localeCompare(String(b[1].cls))||(a[1].rank||999)-(b[1].rank||999));
+    return `<div class="sailor"><h4>${esc(r.reg)}</h4><div class="meta">${r.date!=='9999'?esc(fmtDate(r.date)):''}</div>
+      <div class="res-tbl">${es.map(([n,e])=>`<div><span>${esc(n)}${e.cat?` <span class="cl">· ${esc(e.cat)}</span>`:''}</span><span class="cl">${esc(e.cls||'')}</span><span class="pl">${e.rank??'–'}${e.fleet?'/'+e.fleet:''}</span></div>`).join('')}</div>
+      ${r.fileKey||r.url?`<div class="row2">${r.fileKey?`<button class="chip" data-sumres="${i}">Eredménylista megnyitása</button>`:''}${r.url?`<a class="chip" href="${esc(r.url)}" target="_blank" rel="noopener">Online eredménylista</a>`:''}</div>`:''}</div>`}).join('')+`</div>`}
+  const lc={};done.forEach(s=>{if(s.loc)lc[s.loc]=(lc[s.loc]||0)+1});const la=Object.entries(lc).sort((a,b)=>b[1]-a[1]);const mxl=Math.max(...la.map(a=>a[1]),1);
+  h+=`<h3 class="sec-h">Helyszínek</h3><div class="bars">`+la.map(([n,c])=>
+    `<div class="bar"><span class="nm">${esc(n)}</span><span class="tr"><i style="width:${(c/mxl*100).toFixed(1)}%"></i></span><span class="vv">${c} nap</span></div>`).join('')+`</div>`;
+  $('#main').innerHTML=h;
+}
+
+/* ---------- monthly report ---------- */
+const MADJ=['Januári','Februári','Márciusi','Áprilisi','Májusi','Júniusi','Júliusi','Augusztusi','Szeptemberi','Októberi','Novemberi','Decemberi'];
+const isVer=s=>(s.type||'').toLowerCase().startsWith('verseny');
+function repDays(group,ym){return Object.values(S.sessions).filter(s=>s.status!=='terv'&&(s.athletes||[]).length&&s.date.slice(0,7)===ym&&(!group||s.group===group)).sort((a,b)=>a.date.localeCompare(b.date))}
+function repKey(g,ym){return (g||'')+'|'+ym}
+function getRep(g,ym){const k=repKey(g,ym);if(!S.reports[k])S.reports[k]={overview:'',notes:{},skip:[]};const r=S.reports[k];r.notes=r.notes||{};r.skip=r.skip||[];r.extra=r.extra||[];return r}
+function prevYm(ym){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function windClass(s){const v=[s.w1,s.w2].filter(Boolean).flatMap(w=>[w.max,w.min]).filter(x=>x!=null);if(!v.length)return null;const m=Math.max(...v);return m<=7?'gyenge':m<=14?'közepes':'erős'}
+function joinHu(a){return a.length<2?a.join(''):a.slice(0,-1).join(', ')+' és '+a[a.length-1]}
+function raceList(days){const m={};days.filter(isVer).forEach(s=>{const k=s.race||'';m[k]=m[k]||{d:0,h:0,hk:false};m[k].d++;if(s.heats!=null){m[k].h+=Number(s.heats)||0;m[k].hk=true}});return m}
+function raceTxt(m){return Object.entries(m).map(([n,v])=>`${n||'név nélküli verseny'} (${!v.hk?v.d+' nap':v.h?v.h+' futam':'nem volt futam'})`)}
+function dayTxt(e,v,who){const u=who?'on':'unk';if(e&&v)return `${e} edzés- és ${v} versenynap${who?'on vett részt':'unk volt'}`;if(e)return `${e} edzésnap${who?'on vett részt':'unk volt'}`;return `${v} versenynap${who?'on vett részt':'unk volt'}`}
+function repStats(days){
+  const e=days.filter(s=>!isVer(s)).length,v=days.length-e,mins=days.reduce((a,s)=>a+minsOf(s),0);
+  const loc={};days.forEach(s=>{if(s.loc)loc[s.loc]=(loc[s.loc]||0)+1});
+  const wc={gyenge:0,'közepes':0,'erős':0};days.forEach(s=>{const c=windClass(s);if(c)wc[c]++});
+  const fc={};days.filter(s=>!isVer(s)).forEach(s=>[...new Set(s.focus||[])].forEach(f=>{fc[f]=(fc[f]||0)+1}));
+  const wv={};days.forEach(s=>{if(s.wh)wv[s.wh]=(wv[s.wh]||0)+1});const wt={};days.forEach(s=>{if(s.wt)wt[s.wt]=(wt[s.wt]||0)+1});
+  return {e,v,mins,loc:Object.entries(loc).sort((a,b)=>b[1]-a[1]),wc,wv,wt,races:raceList(days),focus:Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,5)};
+}
+function overviewFacts(st){
+  const f=[`Ebben a hónapban ${dayTxt(st.e,st.v,false)}, összesen ${hmLong(st.mins)} vízen töltött idővel.`];
+  if(st.loc.length)f.push(`Helyszínek: ${st.loc.map(([l,n])=>`${l} (${n} nap)`).join(', ')}.`);
+  const w=Object.entries(st.wc).filter(([,n])=>n).map(([k,n])=>`${n} ${k}`);if(w.length)f.push(`Szélviszonyok: ${joinHu(w)} szeles nap.`);
+  const r=raceTxt(st.races);if(r.length)f.push(`Versenyek: ${r.join(', ')}.`);
+  for(const reg of Object.keys(st.races)){if(!reg)continue;const R=getRes(curSeason(),reg);if(!R)continue;const best={};
+    Object.entries(R.entries).forEach(([n,e])=>{if(!e.rank)return;const c=e.cls||'';if(!best[c]||e.rank<best[c][1].rank)best[c]=[n,e]});
+    const b=Object.values(best).map(([n,e])=>`${n} ${e.rank}${e.fleet?'/'+e.fleet:'.'}${e.cls?` (${e.cls})`:''}`);if(b.length)f.push(`Legjobb eredmény – ${reg}: ${b.join(', ')}.`)}
+  const wo=list('waveH'),wvA=Object.entries(st.wv||{}).sort((a,b)=>wo.indexOf(a[0])-wo.indexOf(b[0])).map(([k,n])=>`${n} nap ${k}`);
+  const wtA=Object.entries(st.wt||{}).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${n} ${k}`);
+  if(wvA.length)f.push(`Hullámmagasság: ${joinHu(wvA)}.`);if(wtA.length)f.push(`Hullámtípus: ${joinHu(wtA)} hullámú nap.`);
+  if(st.focus.length)f.push(`Az edzéseken a fő fókusz: ${st.focus.map(([n,c])=>`${n} (${c} nap)`).join(', ')}.`);
+  return f;
+}
+function sailorStats(days,name){const d=days.filter(s=>(s.athletes||[]).includes(name));const e=d.filter(s=>!isVer(s)).length;
+  return {name,n:d.length,e,v:d.length-e,mins:d.reduce((a,s)=>a+minsOf(s),0),races:raceList(d)}}
+function sailorFacts(st,total){if(!st.n)return ['Ebben a hónapban nem vett részt a csapat edzésein és versenyein.'];const f=[`Ebben a hónapban ${dayTxt(st.e,st.v,true)} (${hmLong(st.mins)} vízen, a csapatnapok ${total?Math.round(st.n/total*100):0}%-án).`];
+  const r=raceTxt(st.races);if(r.length)f.push(`Versenyek: ${r.join(', ')}.`);
+  for(const reg of Object.keys(st.races)){if(!reg)continue;const R=getRes(curSeason(),reg);const e=R&&R.entries[st.name];if(e&&e.rank)f.push(resSentence(reg,e))}
+  return f}
+function repMonths(g){const set=new Set();Object.values(S.sessions).forEach(s=>{if(s.status!=='terv'&&(s.athletes||[]).length&&(!g||s.group===g)&&seasonOf(s)===curSeason())set.add(s.date.slice(0,7))});
+  Object.keys(S.reports).forEach(k=>{const [kg,ym]=k.split('|');if((!g||kg===g)&&Number(ym.slice(0,4))===curSeason())set.add(ym)});return [...set].sort()}
+function repGroups(){const c={};Object.values(S.sessions).forEach(s=>{if(s.group)c[s.group]=(c[s.group]||0)+1});return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(x=>x[0])}
+function sailorOrder(g,ym,days){
+  const r=getRep(g,ym),pr=S.reports[repKey(g,prevYm(ym))];const inData=new Set(days.flatMap(s=>s.athletes||[]));
+  const order=[];const add=n=>{if(!order.includes(n))order.push(n)};
+  Object.keys(r.notes).forEach(n=>{if(inData.has(n)||r.extra.includes(n)||(r.notes[n]||'').trim())add(n)});
+  if(pr)Object.keys(pr.notes||{}).forEach(n=>{if(inData.has(n))add(n)});
+  list('athletes').forEach(n=>{if(inData.has(n))add(n)});inData.forEach(add);r.extra.forEach(add);
+  return order;
+}
+function renderRep(){
+  const groups=repGroups();if(!S.repGroup||!groups.includes(S.repGroup))S.repGroup=groups[0]||'';
+  const g=S.repGroup;const months=repMonths(g);
+  if(!S.repMonth||!months.includes(S.repMonth)){const t=todayStr().slice(0,7);S.repMonth=[...months].reverse().find(m=>m<=t)||months[months.length-1]||null}
+  let h='';
+  if(groups.length>1)h+=`<div class="toolbar">${groups.map(x=>`<button class="chip ${x===g?'on':''}" data-repg="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
+  if(!months.length){$('#main').innerHTML=h+`<div class="empty"><h3>Nincs adat</h3>A ${curSeason()} szezonban még nincs lezárt nap résztvevőkkel.</div>`;return}
+  h+=`<div class="toolbar">${months.map(m=>`<button class="chip ${m===S.repMonth?'on':''}" data-repm="${m}">${MONTHS[Number(m.slice(5))-1]}</button>`).join('')}</div>`;
+  const ym=S.repMonth,days=repDays(g,ym),st=repStats(days),r=getRep(g,ym),pr=S.reports[repKey(g,prevYm(ym))];
+  const title=`${g} Csapat ${MADJ[Number(ym.slice(5))-1]} Beszámoló`;
+  const order=sailorOrder(g,ym,days);S._repOrder=order;
+  const active=order.filter(n=>!r.skip.includes(n)),skipped=order.filter(n=>r.skip.includes(n));
+  h+=`<div class="panel"><h2 class="rep-title">${esc(title)}</h2>
+    <div class="rep-kv"><span>Edzésnapok: <b>${days.length} db</b></span><span>Edzés: <b>${st.e}</b></span><span>Verseny: <b>${st.v}</b></span><span>Vízen: <b>${hmLong(st.mins)}</b></span><span>Versenyzők: <b>${active.length}</b></span></div>
+    <p>A számok a naplóból jönnek: a hónap lezárt napjai, ahol rögzítetted a résztvevőket. A szöveget te írod, a gép csak a tényeket adja hozzá.</p></div>
+  <h3 class="sec-h">Áttekintés</h3>
+  <div class="sailor"><ul class="facts">${overviewFacts(st).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>
+    <div class="row2"><button class="chip" data-repfact="ov">Tények beszúrása a szövegbe</button></div>
+    <textarea class="txt rep" id="rep-ov" data-repov="1" placeholder="Hogyan telt a hónap? (Üres sor = új bekezdés a Wordben)">${esc(r.overview||'')}</textarea>
+    ${pr&&pr.overview?`<details><summary>Előző havi áttekintés</summary><p>${esc(pr.overview)}</p></details>`:''}</div>
+  <h3 class="sec-h">Versenyzők</h3><div class="rep-list">`;
+  active.forEach(n=>{const i=order.indexOf(n);const ss=sailorStats(days,n);const prev=pr&&pr.notes&&pr.notes[n];
+    h+=`<div class="sailor"><h4>${esc(n)} <span class="d">– ${ss.n} nap</span></h4>
+      <div class="meta">${esc(sailorFacts(ss,days.length).join(' '))}</div>
+      <textarea class="txt rep" id="rep-n${i}" data-repn="${i}" placeholder="Értékelés: ${esc(n.split(' ').pop())}">${esc(r.notes[n]||'')}</textarea>
+      <div class="row2"><button class="chip" data-repfact="${i}">Tények beszúrása</button><button class="chip ghost" data-repskip="${i}">Kihagyás a beszámolóból</button></div>
+      ${prev?`<details><summary>Előző havi szöveg</summary><p>${esc(prev)}</p></details>`:''}</div>`});
+  h+='</div>';
+  const cand=list('athletes').filter(n=>!isHidden('athletes',n)&&!order.includes(n));
+  h+=`<div class="sailor" style="margin-top:12px"><h4>Versenyző hozzáadása</h4><div class="meta">Akkor is felveheted, ha ebben a hónapban egy napon sem volt ott (0 nap).</div>${chips('rep','repath',cand,()=>false,{ph:'Vezetéknév Keresztnév'})}</div>`;
+  if(skipped.length)h+=`<div class="sub" style="margin-top:12px">Kihagyva: ${skipped.map(n=>`<button class="chip ghost" data-repunskip="${order.indexOf(n)}">${esc(n)} ↺</button>`).join(' ')}</div>`;
+  h+=`<div class="rep-foot"><button class="btn" data-repdocx="1">Beszámoló letöltése (.docx)</button><span class="sub" style="text-align:center">${esc(title)} · Word-fájl, az eredeti formátumban</span></div>`;
+  $('#main').innerHTML=h;
+  document.querySelectorAll('textarea.rep').forEach(autoGrow);
+}
+function autoGrow(t){t.style.height='auto';t.style.height=Math.max(110,t.scrollHeight+2)+'px'}
+let repSaveT=null;function repSaveSoon(){clearTimeout(repSaveT);repSaveT=setTimeout(saveCache,400)}
+function repInsertFacts(which){
+  const g=S.repGroup,ym=S.repMonth,days=repDays(g,ym),r=getRep(g,ym);
+  if(which==='ov'){const t=overviewFacts(repStats(days)).join(' ');r.overview=(r.overview?r.overview.trimEnd()+'\n\n':'')+t}
+  else{const n=S._repOrder[Number(which)];const t=sailorFacts(sailorStats(days,n),days.length).join(' ');r.notes[n]=(r.notes[n]?r.notes[n].trimEnd()+'\n\n':'')+t}
+  saveCache();renderRep();
+}
+/* .docx writer — same look as the original reports: Calibri 11, bold+underlined headings, 16pt title, A4 */
+function buildDocx(title,count,overview,sailors){
+  const F='<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>';
+  const rp=(b,big)=>`<w:rPr>${F}${b?'<w:b/><w:bCs/><w:u w:val="single"/>':''}${big?'<w:sz w:val="32"/><w:szCs w:val="32"/>':''}</w:rPr>`;
+  const run=(t,b,big)=>`<w:r>${rp(b,big)}<w:t xml:space="preserve">${xe(t)}</w:t></w:r>`;
+  const para=(runs,b,big)=>`<w:p><w:pPr>${rp(b,big)}</w:pPr>${runs}</w:p>`;
+  const paras=t=>String(t||'').split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(x=>para(run(x)));
+  let body=para(run(title,true,true),true,true);
+  body+=para(run('Edzésnapok',true)+run(': ')+run(count+' db'));
+  body+=para(run('Áttekintés:',true),true);
+  body+=paras(overview).join('');
+  for(const s of sailors){body+=para(run(`${s.name} – ${s.days} nap`,true),true);body+=paras(s.text).join('')}
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1417" w:bottom="1417" w:left="1417" w:header="708" w:footer="708" w:gutter="0"/><w:cols w:space="708"/></w:sectPr></w:body></w:document>`;
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:eastAsia="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="hu-HU" w:eastAsia="en-US" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="259" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`;
+  const blob=zip([
+    ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'],
+    ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+    ['word/_rels/document.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['word/document.xml',doc],['word/styles.xml',styles]]);
+  return new Blob([blob],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+function exportDocx(){
+  const g=S.repGroup,ym=S.repMonth,days=repDays(g,ym),r=getRep(g,ym);
+  const title=`${g} Csapat ${MADJ[Number(ym.slice(5))-1]} Beszámoló`;
+  const sailors=S._repOrder.filter(n=>!r.skip.includes(n)).map(n=>({name:n,days:sailorStats(days,n).n,text:r.notes[n]||''}));
+  const empty=sailors.filter(s=>!s.text.trim()).length;
+  const fn=title.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_')+'.docx';
+  try{saveFile(fn,buildDocx(title,days.length,r.overview,sailors));toast(empty?`Letöltve – ${empty} versenyzőnél még nincs szöveg`:'Beszámoló letöltve')}catch(e){toast('A Word-fájl készítése nem sikerült')}
+}
+
+/* ---------- sailor evaluations ---------- */
+const EV_SECTIONS=[
+  {k:'motiv',label:'1. Motivációs szint 1-10 :',val:'motiv',text:'motivText'},
+  {k:'attend',label:'2. Edzés látogatás a szezonban:',val:'attend',text:'attendText'},
+  {k:'intl',label:'3. Nemzetközi programban részt vesz:',val:'intl',text:'intlText',optText:true},
+  {k:'phys',label:'4. Fizikai állapot',text:'phys'},
+  {k:'mental',label:'5. Mentális, Pszichés állapot:',text:'mental'},
+  {k:'equip',label:'5. Felszerelésének állapota:',text:'equip',sub:'Szükséges jövőbeli beszerzési javaslatok'},
+  {k:'goals',label:'6. Kitűzött szakmai célok a szezonra:',text:'goals'},
+  {k:'summary',label:'7. Összegzés:',text:'summary'}];
+const EV_PERIODS={tavaszi:'Tavaszi',oszi:'Őszi'};
+function evKey(per,name){return curSeason()+'|'+per+'|'+name}
+function evStats(name){
+  const y=curSeason();const mine=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&(s.athletes||[]).includes(name));
+  const gc={};mine.forEach(s=>{if(s.group)gc[s.group]=(gc[s.group]||0)+1});const g=Object.entries(gc).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  const team=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&s.status!=='terv'&&(s.athletes||[]).length&&(!g||s.group===g));
+  const tT=team.filter(s=>!isVer(s)),tV=team.filter(isVer);
+  const aT=tT.filter(s=>s.athletes.includes(name)),aV=tV.filter(s=>s.athletes.includes(name));
+  const heats=aV.reduce((a,s)=>a+(Number(s.heats)||0),0),mins=[...aT,...aV].reduce((a,s)=>a+minsOf(s),0);
+  const months={};team.forEach(s=>{const m=Number(s.date.slice(5,7));months[m]=months[m]||[0,0];months[m][1]++;if(s.athletes.includes(name))months[m][0]++});
+  const results=seasonResults(y).filter(r=>r.entries&&r.entries[name]&&r.entries[name].rank).map(r=>({reg:r.reg,...r.entries[name]}));
+  return {results,tT:tT.length,aT:aT.length,tV:tV.length,aV:aV.length,heats,mins,pct:tT.length?Math.round(aT.length/tT.length*100):0,races:raceTxt(raceList(aV)),months};
+}
+function evNames(){
+  const y=curSeason();const set=new Set();
+  Object.keys(S.evals).forEach(k=>{const [ky,,n]=k.split('|');if(Number(ky)===y)set.add(n)});
+  Object.values(S.sessions).forEach(s=>{if(seasonOf(s)===y&&s.status!=='terv')(s.athletes||[]).forEach(a=>set.add(a))});
+  const order=list('athletes');return [...set].sort((a,b)=>{const ia=order.indexOf(a),ib=order.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib)||a.localeCompare(b,'hu')});
+}
+function curEval(){
+  const k=evKey(S.evPeriod,S.evName);
+  if(!S.evals[k]){const sp=S.evals[evKey('tavaszi',S.evName)]||{};const st=evStats(S.evName);
+    S.evals[k]={fullName:sp.fullName||S.evName,age:sp.age||'',cls:sp.cls||'',weight:sp.weight||'',height:sp.height||'',
+      motiv:'',motivText:'',attend:S.evPeriod==='oszi'&&st.tT?String(st.pct):'',attendText:'',intl:'',intlText:'',phys:'',mental:'',equip:'',goals:'',summary:''}}
+  return S.evals[k];
+}
+function evDone(per,name){const e=S.evals[evKey(per,name)];return !!(e&&EV_SECTIONS.some(x=>(e[x.text]||'').trim()))}
+function evAttendFact(st){let t=`A szezonban a csapat ${st.tT} edzésnapjából ${st.aT} napon vett részt (${st.pct}%)`;
+  t+=st.aV?`, emellett ${st.aV} versenynapon versenyzett${st.heats?` (${st.heats} futam)`:''}.`:'.';if(st.races.length)t+=` Versenyek: ${st.races.join(', ')}.`;return t}
+function renderEv(){
+  const names=evNames();
+  if(!names.length){$('#main').innerHTML=`<div class="empty"><h3>Nincs versenyző</h3>Ebben a szezonban még nincs rögzített résztvevő.</div>`;return}
+  if(!S.evName||!names.includes(S.evName))S.evName=names[0];
+  const per=S.evPeriod,other=per==='oszi'?'tavaszi':null;
+  const name=S.evName,e=curEval(),ref=other?S.evals[evKey(other,name)]:null,st=evStats(name);
+  const T=per==='oszi'?'ŐSZI':'TAVASZI';
+  let h=`<div class="toolbar">${Object.entries(EV_PERIODS).map(([k,l])=>`<button class="chip ${k===per?'on':''}" data-evper="${k}">${l} kiértékelés</button>`).join('')}</div>
+  <div class="chips" style="margin-bottom:14px">${names.map((n,i)=>`<button class="chip ${n===name?'on':''}" data-evname="${i}">${esc(n)}${evDone(per,n)?' <span class="ok">✓</span>':''}</button>`).join('')}</div>
+  <div class="panel"><h2 class="rep-title">Versenyző ${T.toLowerCase()} kiértékelés</h2>
+    <div class="rep-kv"><span><b>${esc(name)}</b></span><span>Edzéslátogatás: <b>${st.pct}%</b> (${st.aT}/${st.tT} nap)</span><span>Versenynap: <b>${st.aV}</b></span><span>Futamok: <b>${st.heats}</b></span><span>Vízen: <b>${hmLong(st.mins)}</b></span></div>
+    ${st.races.length?`<p>Versenyek: ${esc(st.races.join(', '))}</p>`:''}
+    ${st.results.length?`<p>Eredmények: <b>${esc(st.results.map(r=>`${r.reg} ${r.rank}${r.fleet?'/'+r.fleet:'.'}`).join(' → '))}</b></p>`:''}
+    <p>Havonta: ${Object.keys(st.months).sort((a,b)=>a-b).map(m=>`${MONTHS[m-1].slice(0,3)}. ${st.months[m][0]}/${st.months[m][1]}`).join(' · ')}</p>
+    <p>A számok a ${curSeason()} szezon naplójából jönnek (lezárt napok, ahol rögzítetted a résztvevőket).${ref?' Minden résznél látod a tavaszi értékelést, hogy arra reflektálhass.':''}</p></div>
+  <h3 class="sec-h">Alap adatok</h3>
+  <div class="sailor"><div class="ev-grid">
+    <label>Név<input class="txt" id="ev-fullName" data-evf="fullName" value="${esc(e.fullName)}"></label>
+    <label>Kor<input class="txt" id="ev-age" data-evf="age" inputmode="numeric" value="${esc(e.age)}"></label>
+    <label>Súly (kg)<input class="txt" id="ev-weight" data-evf="weight" inputmode="decimal" value="${esc(e.weight)}"></label>
+    <label>Magasság (cm)<input class="txt" id="ev-height" data-evf="height" inputmode="numeric" value="${esc(e.height)}"></label></div>
+    <div class="sub">Hajóosztály</div>${chips('ev','evcls',list('classes'),v=>v===e.cls,{ph:'pl. ILCA 7'})}
+    ${ref?`<div class="ref"><span class="rl">Tavasszal</span>${esc([ref.age&&ref.age+' éves',ref.cls,ref.weight&&ref.weight+' kg',ref.height&&ref.height+' cm'].filter(Boolean).join(' · '))}</div>`:''}</div>`;
+  for(const x of EV_SECTIONS){
+    h+=`<div class="sailor ev-sec" style="margin-top:10px"><h4>${esc(x.label.replace(/\s*:\s*$/,''))}</h4>`;
+    if(x.k==='motiv')h+=chips('ev','evmot',list('motivN'),v=>String(v)===String(e.motiv),{num:true,ph:'1-10'});
+    if(x.k==='attend')h+=`<div class="row2"><input class="txt" style="max-width:120px" id="ev-attend" data-evf="attend" inputmode="numeric" value="${esc(e.attend)}" aria-label="Edzéslátogatás %"> <span>%</span>
+      <button class="chip" data-evattend="1">Naplóból: ${st.pct}%</button><button class="chip" data-evfact="1">Tények beszúrása</button></div>`;
+    if(x.k==='summary'&&st.results.length)h+=`<div class="row2"><button class="chip" data-evres="1">Eredmények beszúrása</button></div>`;
+    if(x.k==='intl')h+=chips('ev','evintl',list('intl'),v=>v===e.intl,{ph:'pl. RÉSZBEN'});
+    if(ref){const rv=x.val?ref[x.val]:'';const rt=ref[x.text]||'';
+      if(rv||rt)h+=`<div class="ref"><span class="rl">Tavasszal</span>${rv?`<b>${esc(rv)}${x.k==='attend'?'%':''}</b>${rt?'\n':''}`:''}${esc(rt)}</div>`}
+    if(x.sub)h+=`<div class="sub">${x.sub}</div>`;
+    h+=`<textarea class="txt rep" id="ev-${x.text}" data-evf="${x.text}" placeholder="${x.optText?'Szöveges értékelés (nem kötelező)':'Szöveges értékelés'}">${esc(e[x.text]||'')}</textarea></div>`;
+  }
+  h+=`<div class="rep-foot"><button class="btn" data-evdocx="1">Kiértékelés letöltése (.docx)</button><span class="sub" style="text-align:center">Versenyző ${T.toLowerCase()} kiértékelés · ${esc(name)} · Word-fájl, az eredeti formátumban</span></div>`;
+  $('#main').innerHTML=h;document.querySelectorAll('textarea.rep').forEach(autoGrow);
+}
+function buildEvDocx(title,e){
+  const F='<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>';
+  const rp=o=>`<w:rPr>${F}${o.b?'<w:b/><w:bCs/>':''}${o.i?'<w:i/><w:iCs/>':''}<w:sz w:val="${o.sz||24}"/><w:szCs w:val="${o.sz||24}"/>${o.u?'<w:u w:val="single"/>':''}</w:rPr>`;
+  const R=(t,o={})=>`<w:r>${rp(o)}<w:t xml:space="preserve">${xe(t)}</w:t></w:r>`;
+  const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.center?0:240}" w:after="240"/><w:jc w:val="${o.center?'center':'both'}"/>${rp(o.r||{})}</w:pPr>${runs}</w:p>`;
+  const texts=t=>String(t||'').split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(R(x))).join('');
+  const kv=(l,v,unit)=>P(R(l+' ')+(v?R(v+(unit||''),{b:1}):''));
+  let b=P(R(title,{b:1,sz:28}),{center:1,r:{b:1,sz:28}})+P('',{center:1});
+  b+=P(R('ALAP ADATOK:',{b:1,i:1,u:1}));
+  b+=kv('Név: ',e.fullName)+kv('Kor:',e.age)+kv('Hajóosztály:',e.cls)+kv('Súly:',e.weight,e.weight?' kg':'')+kv('Magasság:',e.height,e.height?' cm':'');
+  for(const x of EV_SECTIONS){
+    const v=x.val?e[x.val]:'';b+=P(R(x.label+(x.val?' ':''))+(v?R(v+(x.k==='attend'?'%':''),{b:1}):''));
+    const t=e[x.text]||'';if(x.optText&&!t.trim())continue;
+    b+=P(R(x.sub||'Szöveges értékelés',{u:1}));b+=texts(t);
+  }
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${b}<w:sectPr><w:pgSz w:w="11909" w:h="16834"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="708"/></w:sectPr></w:body></w:document>`;
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:eastAsia="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="hu-HU" w:eastAsia="hu-HU" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`;
+  return new Blob([zip([
+    ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'],
+    ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+    ['word/_rels/document.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['word/document.xml',doc],['word/styles.xml',styles]])],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+function exportEvDocx(){
+  const e=curEval();const T=S.evPeriod==='oszi'?'ŐSZI':'TAVASZI';const title=`VERSENYZŐ ${T} KIÉRTÉKELÉS`;
+  const fn=(`VERSENYZOI_${T}_KIERTEKELES_${S.evName}`).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_')+'.docx';
+  const empty=EV_SECTIONS.filter(x=>!x.optText&&!(e[x.text]||'').trim()).length;
+  try{saveFile(fn,buildEvDocx(title,e));toast(empty?`Letöltve – ${empty} rész még üres`:'Kiértékelés letöltve')}catch(err){toast('A Word-fájl készítése nem sikerült')}
+}
+
+/* ---------- settings ---------- */
+const LISTS=[['athletes','Résztvevők'],['locations','Helyszínek'],['groups','Csoportok'],['types','Edzés / Verseny típusok'],['races','Versenyek'],['focus','Fókusz elemek'],['dirs','Szélirányok']];
+function renderSet(){
+  const y=curSeason();const p=S.plan;
+  if(!p.from){p.from=y+'-04-01';p.to=y+'-10-31'}
+  const u=usage();
+  let h=`<div class="panel"><h3 class="sec-h" style="margin:0">Google Drive szinkron</h3>
+    <p>Az adatok a Google Drive-od „${FOLDER_NAME}” mappájába mentődnek (${DATA_NAME}), és a telefonod meg a géped automatikusan összehangolódik. Offline is működik, a szinkron utána megtörténik.</p>
+    <label class="sub" for="drv-client">Google kliens azonosító (OAuth Client ID)</label>
+    <input class="txt" id="drv-client" value="${esc(DRIVE.client)}" placeholder="…apps.googleusercontent.com" autocomplete="off">
+    <div class="row2">${DRIVE.on?`<button class="btn" data-drvsync="1">Szinkronizálás most</button><button class="btn sec" data-drvoff="1">Leválasztás</button>`:`<button class="btn" data-drvon="1">Kapcsolódás a Google Drive-hoz</button>`}</div>
+    <p>${DRIVE.on?(DRIVE.status==='err'?'Hiba: '+esc(DRIVE.err):DRIVE.last?'Utolsó szinkron: '+esc(new Date(DRIVE.last).toLocaleString('hu-HU')):'Még nem volt szinkron.'):'Nincs bekapcsolva – az adatok most csak ezen az eszközön vannak.'}</p></div>
+  <div class="panel" id="plan" style="margin-top:12px"><h3 class="sec-h" style="margin:0">Edzésnapok tervezése</h3>
+    <p>Előre létrehozza a tervezett napokat (csak dátum, helyszín, csoport, típus). Ahol már van bejegyzés, azt a napot kihagyja.</p>
+    <div class="dates"><label>Ettől<input type="date" class="txt" id="p-from" value="${esc(p.from)}"></label><label>Eddig<input type="date" class="txt" id="p-to" value="${esc(p.to)}"></label></div>
+    <div class="sub">Napok</div>
+    <div class="chips">${[1,2,3,4,5,6,0].map(d=>`<button type="button" class="chip ${p.days.includes(d)?'on':''}" data-ctx="plan" data-g="pday" data-v="${d}">${WDL[d]}</button>`).join('')}</div>
+    <div class="sub">Helyszín</div>${chips('plan','ploc',list('locations'),v=>v===p.loc)}
+    <div class="sub">Csoport</div>${chips('plan','pgroup',list('groups'),v=>v===p.group)}
+    <div class="sub">Típus</div>${chips('plan','ptype',list('types'),v=>v===p.type)}
+    <div class="row2"><button class="btn" data-doplan="1" ${planDates().length?'':'disabled'}>${planDates().length} tervezett nap létrehozása</button></div>
+  </div>
+  <h3 class="sec-h">Választható gombok</h3>
+  <div class="panel"><p>Átnevezéskor minden korábbi bejegyzés is frissül. Ha egy már létező névre nevezed át, a kettő összeolvad. Az elrejtett gomb nem jelenik meg a rögzítésnél, de a régi adatok megmaradnak.</p>
+  ${LISTS.map(([k,l])=>`<details class="lst" ${S._open===k?'open':''} data-lst="${k}"><summary>${l} <span class="sub">(${list(k).length})</span></summary><div class="opt-list">
+    ${list(k).map((v,i)=>`<div class="opt"><input value="${esc(v)}" data-ren="${k}" data-old="${esc(v)}" aria-label="${esc(l)}: ${esc(v)}">
+      <span class="cnt">${u[k]?.[v]||0}×</span>
+      <button class="ico" data-up="${k}" data-i="${i}" ${i?'':'disabled'} aria-label="Feljebb">↑</button>
+      <button class="ico" data-hide="${k}" data-v="${esc(v)}">${isHidden(k,v)?'Mutat':'Elrejt'}</button></div>`).join('')||'<p>Még üres. Rögzítéskor a „+ Új” gombbal bővül.</p>'}
+  </div></details>`).join('')}
+  </div>
+  <h3 class="sec-h">Adatok</h3>
+  <div class="panel"><p>A ${y} szezon letöltése Excelben, az eredeti táblázat oszlopaival (Dátum, Helyszín, Csoport, B, Edzés/Verseny, Meteo, Fókusz, óra, perc, Megjegyzés).</p>
+  <div class="row2"><button class="btn" data-export="1">${y} szezon letöltése (.xlsx)</button></div></div>
+  <div class="panel" style="margin-top:8px"><p>Az adatok ebben a böngészőben, ezen az eszközön tárolódnak. Készíts rendszeresen biztonsági mentést, ezzel tudod átvinni őket másik gépre vagy telefonra is.${(()=>{let b=null;try{b=localStorage.getItem('edz.lastBackup')}catch(e){}return b?` Utolsó mentés: ${b}.`:' Még nem készült mentés.'})()}</p>
+  <div class="row2"><button class="btn" data-backup="1">Biztonsági mentés (.json)</button>
+  <label class="btn sec" for="restore-file" style="cursor:pointer">Visszatöltés mentésből</label>
+  <input type="file" id="restore-file" accept=".json,application/json" multiple hidden></div>
+  ${S._restoreAsk?`<div class="row2"><span>A fájl(ok) tartalmát összefésülöm a mostani adatokkal (a frissebb bejegyzés marad). Folytatod?</span><button class="btn danger" data-restoreok="1">Igen, visszatöltés</button><button class="btn sec" data-restorex="1">Mégse</button></div>`:''}</div>`;
+  $('#main').innerHTML=h;
+}
+function planDates(){
+  const p=S.plan;if(!p.from||!p.to||!p.days.length)return [];
+  const used=new Set(Object.values(S.sessions).map(s=>s.date));const out=[];
+  let d=pd(p.from);const end=pd(p.to);let guard=0;
+  while(d<=end&&guard<800){if(p.days.includes(d.getDay())&&!used.has(iso(d)))out.push(iso(d));d.setDate(d.getDate()+1);guard++}
+  return out;
+}
+function renameOption(name,oldV,newV){
+  newV=newV.replace(/\s+/g,' ').trim();if(!newV||newV===oldV)return;
+  const arr=list(name).slice();const exists=arr.includes(newV);
+  S.options[name]=exists?arr.filter(x=>x!==oldV):arr.map(x=>x===oldV?newV:x);
+  const fld={locations:'loc',groups:'group',types:'type',races:'race'}[name];
+  for(const [id,s0] of Object.entries(S.sessions)){
+    const s=clone(s0);let ch=false;
+    if(fld&&s[fld]===oldV){s[fld]=newV;ch=true}
+    if(name==='athletes'&&(s.athletes||[]).includes(oldV)){s.athletes=[...new Set(s.athletes.map(a=>a===oldV?newV:a))];ch=true}
+    if(name==='focus'&&(s.focus||[]).includes(oldV)){s.focus=[...new Set(s.focus.map(a=>a===oldV?newV:a))];ch=true}
+    if(name==='dirs')['w1','w2'].forEach(k=>{if(s[k]&&s[k].dir){const ps=s[k].dir.split('-');if(ps.includes(oldV)){s[k].dir=ps.map(x=>x===oldV?newV:x).join('-');ch=true}}});
+    if(ch)putSession(id,s);
+  }
+  saveOptions();render();toast(exists?`Összevonva: ${oldV} → ${newV}`:'Átnevezve');
+}
+
+/* ---------- export ---------- */
+function saveFile(name,blob){
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
+}
+/* minimal .xlsx writer: stored ZIP + SpreadsheetML, no external library */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
+function zip(files){
+  const enc=new TextEncoder();const parts=[];const cen=[];let off=0;
+  for(const [name,text] of files){
+    const nb=enc.encode(name),db=enc.encode(text),crc=crc32(db);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
+    h.setUint16(10,0,true);h.setUint16(12,0x21,true);h.setUint32(14,crc,true);h.setUint32(18,db.length,true);h.setUint32(22,db.length,true);
+    h.setUint16(26,nb.length,true);h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nb,db);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);
+    c.setUint16(12,0,true);c.setUint16(14,0x21,true);c.setUint32(16,crc,true);c.setUint32(20,db.length,true);c.setUint32(24,db.length,true);
+    c.setUint16(28,nb.length,true);c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),nb);off+=30+nb.length+db.length;
+  }
+  const cs=cen.reduce((a,b)=>a+b.length,0);
+  const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);
+  e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function xe(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')}
+function colL(i){let s='';i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s}
+function buildXlsx(rows){
+  const cell=(r,c,v,s)=>{const ref=colL(c)+r;if(v===''||v==null)return '';
+    if(v&&v.f)return `<c r="${ref}" s="3"><f>${xe(v.f)}</f><v>${v.v}</v></c>`;
+    if(v instanceof Date){const ser=(Date.UTC(v.getFullYear(),v.getMonth(),v.getDate())-Date.UTC(1899,11,30))/864e5;return `<c r="${ref}" s="1"><v>${ser}</v></c>`}
+    if(typeof v==='number')return `<c r="${ref}"${s?` s="${s}"`:''}><v>${v}</v></c>`;
+    return `<c r="${ref}" t="inlineStr"${s?` s="${s}"`:''}><is><t xml:space="preserve">${xe(v)}</t></is></c>`};
+  const sd=rows.map((row,i)=>{const r=i+1;const bold=r<=3?2:0;
+    const cs=row.map((v,c)=>cell(r,c,v,bold&&typeof v==='string'?bold:0)).join('');return cs?`<row r="${r}">${cs}</row>`:''}).join('');
+  const widths=[4,11,9,8,60,13,24,50,5,5,24,16,13,9,22];
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><cols>${widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${sd}</sheetData><mergeCells count="1"><mergeCell ref="I2:J2"/></mergeCells></worksheet>`;
+  return zip([
+    ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Munka1" sheetId="1" r:id="rId1"/></sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>'],
+    ['xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy\\.mm\\.dd"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="2" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+    ['xl/worksheets/sheet1.xml',sheet]
+  ]);
+}
+function exportXlsx(){
+  const y=curSeason();const rows=seasonSessions(y);const last=Math.max(4,rows.length+3);
+  const tot=rows.filter(s=>s.status!=='terv').reduce((a,s)=>a+minsOf(s),0)/60;
+  const waves=y>=WAVE_FROM||rows.some(s=>s.wh||s.wt);
+  const aoa=[[],['','','','','','','','','Vízen töltött idő','','','','','','Összes vízen töltött óra'],
+    ['','Dátum','Helyszín','Csoport','B','Edzés/Verseny','Meteo','Fókusz','óra','perc','Megjegyzés',waves?'Hullámmagasság':'',waves?'Hullámtípus':'','',{f:`SUM(I4:I${last})+SUM(J4:J${last})/60`,v:Math.round(tot*100)/100}]];
+  rows.forEach((s,i)=>aoa.push([i+1,pd(s.date),s.loc||'',s.group||'',(s.athletes||[]).join(', '),s.type||'',windFull(s),[...(s.focus||[]),s.heats!=null?s.heats+' futam':''].filter(Boolean).join(', '),
+    s.h??'',s.m??'',[s.race,s.note,s.status==='terv'?'(tervezett)':''].filter(Boolean).join(' – '),s.wh||'',s.wt||'']));
+  try{saveFile(`Edzesnaplo_${y}.xlsx`,buildXlsx(aoa));toast('Excel letöltve')}catch(e){toast('Az Excel készítése nem sikerült')}
+}
+async function exportBackup(){
+  const data={...snapshot(),saved:new Date().toISOString(),files:{}};
+  for(const r of Object.values(S.results)){const k=r.fileKey;if(!k)continue;try{const v=await idbGet(k);if(v)data.files[k]={name:v.name,type:v.type,b64:await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result).split(',')[1]);fr.readAsDataURL(v.blob)})}}catch(e){}}
+  saveFile(`Edzesnaplo_mentes_${todayStr()}.json`,new Blob([JSON.stringify(data)],{type:'application/json'}));
+  try{localStorage.setItem('edz.lastBackup',todayStr())}catch(e){}
+  toast('Biztonsági mentés letöltve');
+}
+async function importBackup(files){
+  const list=[];for(const f of files){try{const d=JSON.parse(await f.text());if(d&&d.app==='edzesnaplo'&&typeof d.sessions==='object')list.push(d);else throw 0}catch(e){toast(f.name+': ez nem Edzésnapló mentésfájl');return}}
+  list.sort((a,b)=>(b.bundle?1:0)-(a.bundle?1:0));let n=0;
+  for(const d of list){for(const [k,v] of Object.entries(d.files||{})){try{await idbPut(k,{name:v.name,type:v.type,blob:b64Blob(v.b64,v.type)})}catch(e){}}
+    mergeIn(d,true);n+=Object.keys(d.sessions).length}
+  for(const R of Object.values(S.results))if(R.fileKey&&R.driveId===undefined)delete R.driveId;
+  S.options._u=Date.now();stampAll(false);LOADED=true;persist();render();syncNow(false);toast(`Betöltve és összefésülve: ${Object.keys(S.sessions).length} nap`);
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;const ds=b.dataset;
+  if(ds.tab){S.tab=ds.tab;render();window.scrollTo(0,0);return}
+  if(ds.repm){S.repMonth=ds.repm;S.repUI._adding=null;renderRep();window.scrollTo(0,0);return}
+  if(ds.repg){S.repGroup=ds.repg;S.repMonth=null;renderRep();return}
+  if(ds.repfact){repInsertFacts(ds.repfact);return}
+  if(ds.repskip){const r=getRep(S.repGroup,S.repMonth);const n=S._repOrder[Number(ds.repskip)];const zero=!repDays(S.repGroup,S.repMonth).some(d=>d.athletes.includes(n));
+    if(zero&&r.extra.includes(n)&&!(r.notes[n]||'').trim())r.extra=r.extra.filter(x=>x!==n);else if(!r.skip.includes(n))r.skip.push(n);saveCache();renderRep();return}
+  if(ds.repunskip){const r=getRep(S.repGroup,S.repMonth);const n=S._repOrder[Number(ds.repunskip)];r.skip=r.skip.filter(x=>x!==n);saveCache();renderRep();return}
+  if(ds.repdocx){exportDocx();return}
+  if(ds.evper){S.evPeriod=ds.evper;S.evUI._adding=null;renderEv();return}
+  if(ds.evname){S.evName=evNames()[Number(ds.evname)];S.evUI._adding=null;renderEv();window.scrollTo(0,0);return}
+  if(ds.evattend){curEval().attend=String(evStats(S.evName).pct);saveCache();renderEv();return}
+  if(ds.evfact){const e=curEval();const t=evAttendFact(evStats(S.evName));e.attendText=(e.attendText?e.attendText.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
+  if(ds.evdocx){exportEvDocx();return}
+  if(ds.evres){const e=curEval();const rs=evStats(S.evName).results;const t=`A szezon versenyeredményei: ${rs.map(r=>`${r.reg} ${r.rank}${r.fleet?'/'+r.fleet:'.'}${r.cat?` (${r.cat})`:''}`).join(', ')}.`;
+    e.summary=(e.summary?e.summary.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
+  if(ds.resopen){const R=getRes(Number(S.form.date.slice(0,4)),S.form.race);if(R&&R.fileKey)openResFile(R.fileKey);return}
+  if(ds.resdel){const R=getRes(Number(S.form.date.slice(0,4)),S.form.race);if(R){delete R.fileKey;delete R.fileName;saveCache()}renderForm();return}
+  if(ds.sumres){const k=S._sumRes[Number(ds.sumres)];if(k)openResFile(k);return}
+  if(ds.season){S.season=Number(ds.season);lsSet(LS_SEASON,S.season);render();return}
+  if(ds.newseason){const y=Math.max(...allSeasons())+1;S.options.seasons=[...new Set([...(S.options.seasons||[]).map(Number),y])];saveOptions();
+    S.season=y;lsSet(LS_SEASON,y);S.plan.from='';S.tab='log';render();toast(`${y} szezon létrehozva – a gombok (versenyzők, helyszínek…) megmaradtak`);return}
+  if(ds.filter){S.filter=ds.filter;render();return}
+  if(ds.export){exportXlsx();return}
+  if(ds.backup){exportBackup();return}
+  if(ds.restoreok){const f=S._restoreFile;S._restoreAsk=false;S._restoreFile=null;if(f)importBackup(Array.isArray(f)?f:[f]);renderSet();return}
+  if(ds.restorex){S._restoreAsk=false;S._restoreFile=null;renderSet();return}
+  if(ds.open){openForm(ds.open);return}
+  if(ds.new||b.id==='fab'){const y=curSeason();const pre=y!==new Date().getFullYear()?{date:y+'-04-01'}:null;openForm(null,pre);return}
+  if(ds.goplan){S.tab='set';render();window.scrollTo(0,0);return}
+  if(ds.g){handleChip(ds.ctx,ds.g,ds.v);rer(ds.ctx);return}
+  if(ds.add){const t=tgt(ds.ctx);t._adding=ds.add;rer(ds.ctx);
+    const i=document.getElementById('add-'+ds.add);if(i)i.focus();return}
+  if(ds.addok){doAdd(ds.ctx,ds.addok);return}
+  if(ds.addx){const t=tgt(ds.ctx);t._adding=null;rer(ds.ctx);return}
+  if(ds.close){closeForm();return}
+  if(ds.pnew||(b.id==='fab'&&S.tab==='plan')){openPlanEditor(null);return}
+  if(ds.pedit){openPlanEditor(ds.pedit);return}
+  if(ds.precord){openForm(ds.precord);return}
+  if(ds.peclose){S.pe=null;$('#sheet').innerHTML='';return}
+  if(ds.pesave){savePlan();return}
+  if(ds.peall){S.pe.athletes=list('athletes').filter(n=>!isHidden('athletes',n));renderPlanEditor();return}
+  if(ds.penone){S.pe.athletes=[];renderPlanEditor();return}
+  if(ds.pbup){const i=Number(ds.pbup),a=S.pe.blocks;[a[i-1],a[i]]=[a[i],a[i-1]];renderPlanEditor();return}
+  if(ds.pbdn){const i=Number(ds.pbdn),a=S.pe.blocks;[a[i+1],a[i]]=[a[i],a[i+1]];renderPlanEditor();return}
+  if(ds.pbx){S.pe.blocks.splice(Number(ds.pbx),1);renderPlanEditor();return}
+  if(ds.pbmin){const bl=S.pe.blocks[Number(ds.pbmin)];const m=Number(ds.v);bl.min=Number(bl.min)===m?0:m;renderPlanEditor();return}
+  if(ds.pecopy){const x=S.sessions[ds.pecopy];if(x&&x.plan){S.pe.goal=x.plan.goal||'';S.pe.blocks=clone(x.plan.blocks||[]);S.pe.note=x.plan.note||''}renderPlanEditor();toast('Terv átmásolva – a dátumot ellenőrizd');return}
+  if(ds.pecopytxt){const t=planText(S.pe);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Terv szövege a vágólapon')).catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Terv szövege a vágólapon')}catch(e){toast('Nem sikerült másolni')}ta.remove()});return}
+  if(ds.pedelask){S.pe._confirm=true;renderPlanEditor();return}
+  if(ds.pedelx){S.pe._confirm=false;renderPlanEditor();return}
+  if(ds.pedel){const id=S.pe.id;const s0=S.sessions[id];if(s0&&s0.status==='terv')delSession(id);else if(s0){const c=clone(s0);delete c.plan;putSession(id,c)}S.pe=null;$('#sheet').innerHTML='';render();toast('Terv törölve');return}
+  if(b.id==='sync'){if(!DRIVE.on){S.tab='set';render();window.scrollTo(0,0)}else syncNow(true);return}
+  if(ds.drvon){const v=($('#drv-client')||{}).value||'';DRIVE.client=v.trim();lsSet('edz.drive.client',DRIVE.client);if(!DRIVE.client){toast('Előbb add meg a Google kliens azonosítót');return}
+    DRIVE.on=true;lsSet('edz.drive.on',true);syncNow(true).then(()=>render());return}
+  if(ds.drvoff){DRIVE.on=false;lsSet('edz.drive.on',false);DRIVE.token=null;lsSet('edz.drive.tok',null);render();toast('Drive leválasztva – az adatok ezen az eszközön megmaradnak');return}
+  if(ds.drvsync){syncNow(true);return}
+  if(ds.save){saveForm();return}
+  if(ds.delask){S.form._confirm=true;renderForm();return}
+  if(ds.delx){S.form._confirm=false;renderForm();return}
+  if(ds.del){delSession(S.form._id);closeForm();render();toast('Törölve');return}
+  if(ds.w2){S.form._showW2=true;renderForm();return}
+  if(ds.w2x){S.form._showW2=false;S.form.w2=blankW();renderForm();return}
+  if(ds.lastath){const prev=Object.values(S.sessions).filter(s=>s.date<S.form.date&&(s.athletes||[]).length).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    if(prev)S.form.athletes=prev.athletes.slice();renderForm();return}
+  if(ds.noath){S.form.athletes=[];renderForm();return}
+  if(ds.doplan){const ds2=planDates();const p=S.plan;
+    ds2.forEach((d,i)=>putSession(uid()+i,{date:d,status:'terv',loc:p.loc||'',group:p.group||'',type:p.type||'',race:'',athletes:[],focus:[],w1:null,w2:null,h:null,m:null,note:'',created:Date.now()+i}));
+    if(ds2.length){S.season=seasonOf({date:ds2[0]});lsSet(LS_SEASON,S.season)}
+    toast(`${ds2.length} tervezett nap létrehozva`);S.tab='log';S.filter='all';render();return}
+  if(ds.up){const k=ds.up,i=Number(ds.i);const a=list(k).slice();[a[i-1],a[i]]=[a[i],a[i-1]];S.options[k]=a;S._open=k;saveOptions();render();return}
+  if(ds.hide){const k=ds.hide,v=ds.v;S.options.hidden=S.options.hidden||{};const h=S.options.hidden[k]||[];
+    S.options.hidden[k]=h.includes(v)?h.filter(x=>x!==v):[...h,v];S._open=k;saveOptions();render();return}
+});
+document.addEventListener('keydown',e=>{
+  const t=e.target;if(!t.dataset)return;
+  if(t.dataset.addin){if(e.key==='Enter'){e.preventDefault();doAdd(t.dataset.ctx,t.dataset.addin)}
+    else if(e.key==='Escape'){const o=tgt(t.dataset.ctx);o._adding=null;rer(t.dataset.ctx)}}
+  if(t.dataset.ren&&e.key==='Enter')t.blur();
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='f-note'&&S.form)S.form.note=t.value;
+  if(S.pe&&t.dataset){if(t.dataset.pef)S.pe[t.dataset.pef]=t.value;if(t.dataset.pbn!=null&&t.dataset.pbn!==undefined&&t.matches('[data-pbn]'))S.pe.blocks[Number(t.dataset.pbn)].note=t.value;
+    if(t.matches&&t.matches('[data-pbm]')){const n=parseInt(t.value,10);S.pe.blocks[Number(t.dataset.pbm)].min=isFinite(n)&&n>0?n:0}}
+  if(t.dataset&&t.dataset.resurl&&S.form){const R=getRes(Number(S.form.date.slice(0,4)),S.form.race,true);const v=t.value.trim();if(/^https?:\/\//i.test(v))R.url=v;else delete R.url;repSaveSoon()}
+  if(t.dataset&&t.dataset.res&&S.form){const a=S.form.athletes[Number(t.dataset.ra)];const R=getRes(Number(S.form.date.slice(0,4)),S.form.race,true);
+    const e=R.entries[a]=R.entries[a]||{};const k=t.dataset.res;const v=t.value.trim();
+    if(k==='rank'||k==='fleet'){const n=parseInt(v,10);if(isFinite(n)&&n>0)e[k]=n;else delete e[k]}else{if(v)e[k]=v;else delete e[k]}
+    if(!Object.keys(e).length)delete R.entries[a];repSaveSoon()}
+  if(t.dataset&&t.dataset.evf&&S.evName){curEval()[t.dataset.evf]=t.value;if(t.tagName==='TEXTAREA')autoGrow(t);repSaveSoon()}
+  if(t.dataset&&t.dataset.repov){getRep(S.repGroup,S.repMonth).overview=t.value;autoGrow(t);repSaveSoon()}
+  if(t.dataset&&t.dataset.repn!=null&&t.dataset.repn!==undefined&&t.classList.contains('rep')){const n=S._repOrder[Number(t.dataset.repn)];getRep(S.repGroup,S.repMonth).notes[n]=t.value;autoGrow(t);repSaveSoon()}
+  if(t.dataset.wextra&&S.form){S.form['w'+t.dataset.wextra].extra=t.value;const pv=t.closest('.wind').querySelector('.prev');if(pv)pv.textContent=wStr(S.form['w'+t.dataset.wextra])||'—'}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='f-date'&&S.form&&t.value){S.form.date=t.value;renderForm()}
+  if(t.id==='pe-date'&&S.pe&&t.value){S.pe.date=t.value;renderPlanEditor()}
+  if(t.id==='drv-client'){DRIVE.client=t.value.trim();lsSet('edz.drive.client',DRIVE.client)}
+  if(t.matches&&t.matches('[data-pbm]')&&S.pe)renderPlanEditor();
+  if(t.id==='p-from'){S.plan.from=t.value;renderSet()}
+  if(t.id==='p-to'){S.plan.to=t.value;renderSet()}
+  if(t.dataset.ren){S._open=t.dataset.ren;renameOption(t.dataset.ren,t.dataset.old,t.value)}
+  if(t.id==='res-file'&&t.files&&t.files[0]&&S.form){const f=S.form;attachResFile(Number(f.date.slice(0,4)),f.race,t.files[0]).then(()=>{if(S.form)renderForm()})}
+  if(t.id==='restore-first'&&t.files&&t.files.length){importBackup([...t.files]);return}
+  if(t.id==='restore-file'&&t.files&&t.files.length){S._restoreFile=[...t.files];S._restoreAsk=true;renderSet()}
+});
+document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.lst&&d.open)S._open=d.dataset.lst},true);
+
+render();
+connect();
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+})();
+</script>
+
+</body>
+</html>
