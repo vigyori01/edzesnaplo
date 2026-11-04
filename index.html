@@ -1201,15 +1201,15 @@ function buildEvDocx(title,e){
   const rp=o=>`<w:rPr>${F}${o.b?'<w:b/><w:bCs/>':''}${o.i?'<w:i/><w:iCs/>':''}<w:sz w:val="${o.sz||24}"/><w:szCs w:val="${o.sz||24}"/>${o.u?'<w:u w:val="single"/>':''}</w:rPr>`;
   const R=(t,o={})=>`<w:r>${rp(o)}<w:t xml:space="preserve">${xe(t)}</w:t></w:r>`;
   const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.center?0:240}" w:after="240"/><w:jc w:val="${o.center?'center':o.left?'left':'both'}"/>${rp(o.r||{})}</w:pPr>${runs}</w:p>`;
-  const texts=t=>String(t||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(x.split('\n').map(l=>R(l.trim())).join('<w:r><w:br/></w:r>'),{left:/^(Havi edzéslátogatás|A szezon versenyeredményei)/i.test(x)})).join('');
+  const texts=(t,allLeft)=>String(t||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(x.split('\n').map(l=>R(l.trim())).join('<w:r><w:br/></w:r>'),{left:allLeft||/^(Havi edzéslátogatás|A szezon versenyeredményei)/i.test(x)})).join('');
   const kv=(l,v,unit)=>P(R(l+' ')+(v?R(v+(unit||''),{b:1}):''));
   let b=P(R(title,{b:1,sz:28}),{center:1,r:{b:1,sz:28}})+P('',{center:1});
   b+=P(R('ALAP ADATOK:',{b:1,i:1,u:1}));
   b+=kv('Név: ',e.fullName)+kv('Kor:',e.age)+kv('Hajóosztály:',e.cls)+kv('Súly:',e.weight,e.weight?' kg':'')+kv('Magasság:',e.height,e.height?' cm':'');
   for(const x of EV_SECTIONS){
-    const v=x.val?e[x.val]:'';b+=P(R(x.label+(x.val?' ':''))+(v?R(v+(x.k==='attend'?'%':''),{b:1}):''));
+    const L=x.k==='summary';const v=x.val?e[x.val]:'';b+=P(R(x.label+(x.val?' ':''))+(v?R(v+(x.k==='attend'?'%':''),{b:1}):''),{left:L});
     const t=e[x.text]||'';if(x.optText&&!t.trim())continue;
-    b+=P(R(x.sub||'Szöveges értékelés',{u:1}));b+=texts(t);
+    b+=P(R(x.sub||'Szöveges értékelés',{u:1}),{left:L});b+=texts(t,L);
   }
   const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${b}<w:sectPr><w:pgSz w:w="11909" w:h="16834"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="708"/></w:sectPr></w:body></w:document>`;
   const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:eastAsia="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="hu-HU" w:eastAsia="hu-HU" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`;
