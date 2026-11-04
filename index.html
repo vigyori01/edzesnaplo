@@ -195,6 +195,15 @@ html,body{touch-action:manipulation}
 .dob-row .dn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dob-row .da{color:var(--muted);font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:420px){.dob-row{grid-template-columns:minmax(0,1fr) 150px}.dob-row .da{grid-column:1 / -1;text-align:left;margin-top:-4px}}
+.prog{height:8px;background:var(--water-soft);border-radius:99px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--water);border-radius:99px;transition:width .25s ease}
+.prog.full i{background:var(--ok)}
+.pc{font-weight:700;font-variant-numeric:tabular-nums}.pc.lo{color:var(--buoy)}.pc.mid{color:var(--water)}
+.chip.on .pc{color:inherit}
+.chip.done{border-color:var(--ok);color:var(--ok);font-weight:600}
+.chip.done.on{background:var(--ok);border-color:var(--ok);color:var(--on-water)}
+.chip.done .ok,.chip.done.on .ok{color:inherit}
+.sailor h4 .rk{margin-left:auto}
 .ni{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 button.sync{background:none;border:0;padding:4px 0;cursor:pointer}
 .pblocks{display:flex;flex-direction:column;gap:8px}
@@ -984,6 +993,11 @@ async function importReportFile(file){
     const g=repGroups().includes(imp.group)?imp.group:(S.repGroup||imp.group);const ex=S.reports[repKey(g,imp.ym)];
     if(repHasText(ex)){S._repImport=imp;S.repGroup=g;S.repMonth=imp.ym;renderRep();window.scrollTo(0,0)}else applyReportImport(imp,'replace');
   }catch(e){toast(e.message||'Az importálás nem sikerült')}}
+function repMonthChips(g,months){return months.map(m=>{const fr=repReadyFor(g,m);const r=S.reports[repKey(g,m)];const started=!!(r&&(String(r.overview||'').trim()||Object.values(r.notes||{}).some(t=>String(t||'').trim())));
+  return `<button class="chip ${m===S.repMonth?'on':''} ${fr>=1?'done':''}" data-repm="${m}">${MONTHS[Number(m.slice(5))-1]}${started||fr>0?readyBadge(fr):''}</button>`}).join('')}
+function repLiveReady(i){if(S.tab!=='rep'||!S.repMonth)return;const g=S.repGroup;setProg('rep-prog',repReadyFor(g,S.repMonth));
+  const c=document.getElementById('rep-months');if(c)c.innerHTML=repMonthChips(g,repMonths(g));
+  if(i!=null){const n=S._repOrder[i];const k=document.getElementById('rk-'+i);if(k)k.hidden=!filledTxt(getRep(g,S.repMonth).notes[n])}}
 function renderRep(){
   const groups=repGroups();if(!S.repGroup||!groups.includes(S.repGroup))S.repGroup=groups[0]||'';
   const g=S.repGroup;const months=repMonths(g);
@@ -994,12 +1008,12 @@ function renderRep(){
     <p>Az importált fájlban ${im.order.length} versenyző szövege és ${im.overview?'egy':'nincs'} áttekintés van.</p>
     <div class="row2"><button class="btn" data-repimp="replace">Felülírás az importálttal</button><button class="btn sec" data-repimp="fill">Csak az üres részek kitöltése</button><button class="btn sec" data-repimp="cancel">Mégse</button></div></div>`}
   if(!months.length){$('#main').innerHTML=h+`<div class="empty"><h3>Nincs adat</h3>A ${curSeason()} szezonban még nincs lezárt nap résztvevőkkel.</div><div class="rep-foot"><label class="btn sec" for="rep-import" style="text-align:center;cursor:pointer">Beszámoló importálása (.docx / mentés)</label><input type="file" id="rep-import" accept=".docx,.json,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></div>`;return}
-  h+=`<div class="toolbar">${months.map(m=>`<button class="chip ${m===S.repMonth?'on':''}" data-repm="${m}">${MONTHS[Number(m.slice(5))-1]}</button>`).join('')}</div>`;
+  h+=`<div class="toolbar" id="rep-months">${repMonthChips(g,months)}</div>`;
   const ym=S.repMonth,days=repDays(g,ym),st=repStats(days),r=getRep(g,ym),pr=S.reports[repKey(g,prevYm(ym))];
   const title=`${g} Csapat ${MADJ[Number(ym.slice(5))-1]} Beszámoló`;
   const order=sailorOrder(g,ym,days);S._repOrder=order;
   const active=order.filter(n=>!r.skip.includes(n)),skipped=order.filter(n=>r.skip.includes(n));
-  h+=`<div class="panel"><h2 class="rep-title">${esc(title)}</h2>
+  h+=`<div class="panel"><h2 class="rep-title">${esc(title)}</h2>${progBar(repReadyFor(g,ym),'rep-prog')}
     <div class="rep-kv"><span>Edzésnapok: <b>${days.length} db</b></span><span>Edzés: <b>${st.e}</b></span><span>Verseny: <b>${st.v}</b></span><span>Vízen: <b>${hmLong(st.mins)}</b></span><span>Versenyzők: <b>${active.length}</b></span></div>
     <p>A számok a naplóból jönnek: a hónap lezárt napjai, ahol rögzítetted a résztvevőket. A szöveget te írod, a gép csak a tényeket adja hozzá.</p></div>
   <h3 class="sec-h">Áttekintés</h3>
@@ -1009,7 +1023,7 @@ function renderRep(){
     ${pr&&pr.overview?`<details><summary>Előző havi áttekintés</summary><p>${esc(pr.overview)}</p></details>`:''}</div>
   <h3 class="sec-h">Versenyzők</h3><div class="rep-list">`;
   active.forEach(n=>{const i=order.indexOf(n);const ss=sailorStats(days,n);const prev=pr&&pr.notes&&pr.notes[n];
-    h+=`<div class="sailor"><h4>${esc(n)} <span class="d">– ${ss.n} nap</span></h4>
+    h+=`<div class="sailor"><h4>${esc(n)} <span class="d">– ${ss.n} nap</span><span class="ok rk" id="rk-${i}"${filledTxt(r.notes[n])?'':' hidden'}>✓</span></h4>
       <div class="meta">${esc(sailorFacts(ss,days.length).join(' '))}</div>
       <textarea class="txt rep" id="rep-n${i}" data-repn="${i}" placeholder="Értékelés: ${esc(n.split(' ').pop())}">${esc(r.notes[n]||'')}</textarea>
       <div class="row2"><button class="chip" data-repfact="${i}">Tények beszúrása</button><button class="chip ghost" data-repskip="${i}">Kihagyás a beszámolóból</button></div>
@@ -1107,6 +1121,23 @@ function curEval(){
       motiv:'',motivText:'',attend:S.evPeriod==='oszi'&&st.tT?String(st.pct):'',attendText:'',intl:'',intlText:'',phys:'',mental:'',equip:'',goals:'',summary:''}}
   return S.evals[k];
 }
+/* ---------- readiness ---------- */
+const READY_MIN=50;const EV_TEXT=['motivText','attendText','phys','mental','equip','goals','summary'];
+const filledTxt=t=>String(t||'').trim().length>=READY_MIN;
+function evReady(e){return e?EV_TEXT.filter(f=>filledTxt(e[f])).length/EV_TEXT.length:0}
+function evAdded(per,name){const e=S.evals[evKey(per,name)];return !!(e&&(e.started||EV_TEXT.some(f=>String(e[f]||'').trim())||String(e.intlText||'').trim()))}
+function readyBadge(fr){const pc=Math.floor(fr*100+1e-9);return fr>=1?' <span class="ok">✓</span>':` <span class="pc ${pc<50?'lo':'mid'}">· ${pc}%</span>`}
+function progBar(fr,id){return `<div class="prog${fr>=1?' full':''}" id="${id}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.floor(fr*100)}"><i style="width:${(fr*100).toFixed(1)}%"></i></div>`}
+function setProg(id,fr){const el=document.getElementById(id);if(!el)return;el.classList.toggle('full',fr>=1);el.setAttribute('aria-valuenow',Math.floor(fr*100));el.firstElementChild.style.width=(fr*100).toFixed(1)+'%'}
+function repReadyFor(g,ym){const r=S.reports[repKey(g,ym)]||{};const days=repDays(g,ym);const skip=r.skip||[];
+  const sailors=[...new Set(days.flatMap(d=>d.athletes||[]))].filter(n=>!skip.includes(n));
+  const parts=1+sailors.length;const done=(filledTxt(r.overview)?1:0)+sailors.filter(n=>filledTxt((r.notes||{})[n])).length;return parts?done/parts:0}
+function evChips(per,names,sel){return names.map((n,i)=>{const added=evAdded(per,n);const fr=added?evReady(S.evals[evKey(per,n)]):0;
+  return `<button class="chip ${n===sel?'on':''} ${added&&fr>=1?'done':''}" data-evname="${i}">${esc(n)}${added?readyBadge(fr):''}</button>`}).join('')}
+function evSummary(per,names){const a=names.filter(n=>evAdded(per,n));if(!a.length)return `${EV_PERIODS[per]} kiértékelések: még egyik sincs elkezdve.`;
+  const frs=a.map(n=>evReady(S.evals[evKey(per,n)]));return `${EV_PERIODS[per]} kiértékelések: ${frs.filter(f=>f>=1).length}/${a.length} kész · átlag ${Math.floor(frs.reduce((x,y)=>x+y,0)/a.length*100)}%`}
+function evLiveReady(){if(S.tab!=='ev'||!S.evName)return;const names=evNames();setProg('ev-prog',evReady(curEval()));
+  const c=document.getElementById('ev-chips');if(c)c.innerHTML=evChips(S.evPeriod,names,S.evName);const su=document.getElementById('ev-sum');if(su)su.textContent=evSummary(S.evPeriod,names)}
 function evDone(per,name){const e=S.evals[evKey(per,name)];return !!(e&&EV_SECTIONS.some(x=>(e[x.text]||'').trim()))}
 function evAttendFact(st){let t=`A szezonban a csapat ${st.tT} edzésnapjából ${st.aT} napon vett részt (${st.pct}%)`;
   t+=st.aV?`, emellett ${st.aV} versenynapon versenyzett${st.heats?` (${st.heats} futam)`:''}.`:'.';if(st.races.length)t+=` Versenyek: ${st.races.join(', ')}.`;return t}
@@ -1118,8 +1149,9 @@ function renderEv(){
   const name=S.evName,e=curEval(),ref=other?S.evals[evKey(other,name)]:null,st=evStats(name);{const au0=evAuto(e);if(au0!=null)e.age=String(au0)}
   const T=per==='oszi'?'ŐSZI':'TAVASZI';
   let h=`<div class="toolbar">${Object.entries(EV_PERIODS).map(([k,l])=>`<button class="chip ${k===per?'on':''}" data-evper="${k}">${l} kiértékelés</button>`).join('')}</div>
-  <div class="chips" style="margin-bottom:14px">${names.map((n,i)=>`<button class="chip ${n===name?'on':''}" data-evname="${i}">${esc(n)}${evDone(per,n)?' <span class="ok">✓</span>':''}</button>`).join('')}</div>
-  <div class="panel"><h2 class="rep-title">Versenyző ${T.toLowerCase()} kiértékelés</h2>
+  <div class="sub" id="ev-sum" style="margin-bottom:6px">${evSummary(per,names)}</div>
+  <div class="chips" id="ev-chips" style="margin-bottom:14px">${evChips(per,names,name)}</div>
+  <div class="panel"><h2 class="rep-title">Versenyző ${T.toLowerCase()} kiértékelés</h2>${progBar(evReady(e),'ev-prog')}
     <div class="rep-kv"><span><b>${esc(name)}</b></span><span>Edzéslátogatás: <b>${st.pct}%</b> (${st.aT}/${st.tT} nap)</span><span>Versenynap: <b>${st.aV}</b></span><span>Futamok: <b>${st.heats}</b></span><span>Vízen: <b>${hmLong(st.mins)}</b></span></div>
     ${st.races.length?`<p>Versenyek: ${esc(st.races.join(', '))}</p>`:''}
     ${st.results.length?`<p>Eredmények: <b>${esc(st.results.map(r=>`${r.reg} ${r.rank}${r.fleet?'/'+r.fleet:'.'}`).join(' → '))}</b></p>`:''}
@@ -1425,9 +1457,9 @@ document.addEventListener('input',e=>{
     if(k==='rank'||k==='fleet'){const n=parseInt(v,10);if(isFinite(n)&&n>0)e[k]=n;else delete e[k]}else{if(v)e[k]=v;else delete e[k]}
     if(!Object.keys(e).length)delete R.entries[a];repSaveSoon()}
   if(t.matches&&t.matches('[data-dob]')){const f=dotFmt(t.value);if(f!==t.value&&!/[^\d.]/.test(t.value.replace(/\D/g,'')))t.value=f;t.classList.remove('bad');if(f.length===10&&parseDot(f))t.dispatchEvent(new Event('change',{bubbles:true}))}
-  if(t.dataset&&t.dataset.evf&&S.evName){const e=curEval();if(t.dataset.evf==='age'){if(!e.started)e.started=todayStr();e.ageManual=true}else evTouch(e);e[t.dataset.evf]=t.value;if(t.tagName==='TEXTAREA')autoGrow(t);repSaveSoon()}
-  if(t.dataset&&t.dataset.repov){getRep(S.repGroup,S.repMonth).overview=t.value;autoGrow(t);repSaveSoon()}
-  if(t.dataset&&t.dataset.repn!=null&&t.dataset.repn!==undefined&&t.classList.contains('rep')){const n=S._repOrder[Number(t.dataset.repn)];getRep(S.repGroup,S.repMonth).notes[n]=t.value;autoGrow(t);repSaveSoon()}
+  if(t.dataset&&t.dataset.evf&&S.evName){const e=curEval();if(t.dataset.evf==='age'){if(!e.started)e.started=todayStr();e.ageManual=true}else evTouch(e);e[t.dataset.evf]=t.value;evLiveReady();if(t.tagName==='TEXTAREA')autoGrow(t);repSaveSoon()}
+  if(t.dataset&&t.dataset.repov){getRep(S.repGroup,S.repMonth).overview=t.value;autoGrow(t);repLiveReady(null);repSaveSoon()}
+  if(t.dataset&&t.dataset.repn!=null&&t.dataset.repn!==undefined&&t.classList.contains('rep')){const n=S._repOrder[Number(t.dataset.repn)];getRep(S.repGroup,S.repMonth).notes[n]=t.value;autoGrow(t);repLiveReady(Number(t.dataset.repn));repSaveSoon()}
   if(t.dataset.wextra&&S.form){S.form['w'+t.dataset.wextra].extra=t.value;const pv=t.closest('.wind').querySelector('.prev');if(pv)pv.textContent=wStr(S.form['w'+t.dataset.wextra])||'—'}
 });
 document.addEventListener('change',e=>{
