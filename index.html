@@ -1139,6 +1139,15 @@ function evSummary(per,names){const a=names.filter(n=>evAdded(per,n));if(!a.leng
 function evLiveReady(){if(S.tab!=='ev'||!S.evName)return;const names=evNames();setProg('ev-prog',evReady(curEval()));
   const c=document.getElementById('ev-chips');if(c)c.innerHTML=evChips(S.evPeriod,names,S.evName);const su=document.getElementById('ev-sum');if(su)su.textContent=evSummary(S.evPeriod,names)}
 function evDone(per,name){const e=S.evals[evKey(per,name)];return !!(e&&EV_SECTIONS.some(x=>(e[x.text]||'').trim()))}
+/* monthly attendance list for section 2: training days and regatta days per month */
+function evMonthly(name){const y=curSeason();const mine=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&(s.athletes||[]).includes(name));
+  const gc={};mine.forEach(s=>{if(s.group)gc[s.group]=(gc[s.group]||0)+1});const g=Object.entries(gc).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  const team=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&s.status!=='terv'&&(s.athletes||[]).length&&(!g||s.group===g));
+  const by={};let tT=0,aT=0;team.forEach(s=>{const m=Number(s.date.slice(5,7));const d=by[m]=by[m]||{t:0,a:0,vt:0,va:0};const at=s.athletes.includes(name);
+    if(isVer(s)){d.vt++;if(at)d.va++}else{d.t++;if(at)d.a++;tT++;if(at)aT++}});
+  const cap=w=>w.charAt(0).toUpperCase()+w.slice(1);
+  const lines=Object.keys(by).map(Number).sort((a,b)=>a-b).map(m=>{const d=by[m];const parts=[];if(d.t)parts.push(`${d.a}/${d.t} edzésnap`);if(d.vt)parts.push(`${d.va}/${d.vt} versenynap`);return `${cap(MONTHS[m-1])}: ${parts.join(', ')}`});
+  return ['Havi edzéslátogatás:',...lines,`Összesen: ${aT}/${tT} edzésnap (${tT?Math.round(aT/tT*100):0}%)`].join('\n')}
 function evAttendFact(st){let t=`A szezonban a csapat ${st.tT} edzésnapjából ${st.aT} napon vett részt (${st.pct}%)`;
   t+=st.aV?`, emellett ${st.aV} versenynapon versenyzett${st.heats?` (${st.heats} futam)`:''}.`:'.';if(st.races.length)t+=` Versenyek: ${st.races.join(', ')}.`;return t}
 function renderEv(){
@@ -1177,7 +1186,7 @@ function renderEv(){
     h+=`<div class="sailor ev-sec" style="margin-top:10px"><h4>${esc(x.label.replace(/\s*:\s*$/,''))}</h4>`;
     if(x.k==='motiv')h+=chips('ev','evmot',list('motivN'),v=>String(v)===String(e.motiv),{num:true,ph:'1-10'});
     if(x.k==='attend')h+=`<div class="row2"><input class="txt" style="max-width:120px" id="ev-attend" data-evf="attend" inputmode="numeric" value="${esc(e.attend)}" aria-label="Edzéslátogatás %"> <span>%</span>
-      <button class="chip" data-evattend="1">Naplóból: ${st.pct}%</button><button class="chip" data-evfact="1">Tények beszúrása</button></div>`;
+      <button class="chip" data-evattend="1">Naplóból: ${st.pct}%</button><button class="chip" data-evfact="1">Tények beszúrása</button><button class="chip" data-evmonths="1">Havi bontás beszúrása</button></div>`;
     if(x.k==='summary'&&st.results.length)h+=`<div class="row2"><button class="chip" data-evres="1">Eredmények beszúrása</button></div>`;
     if(x.k==='intl')h+=chips('ev','evintl',list('intl'),v=>v===e.intl,{ph:'pl. RÉSZBEN'});
     if(ref){const rv=x.val?ref[x.val]:'';const rt=ref[x.text]||'';
@@ -1193,7 +1202,7 @@ function buildEvDocx(title,e){
   const rp=o=>`<w:rPr>${F}${o.b?'<w:b/><w:bCs/>':''}${o.i?'<w:i/><w:iCs/>':''}<w:sz w:val="${o.sz||24}"/><w:szCs w:val="${o.sz||24}"/>${o.u?'<w:u w:val="single"/>':''}</w:rPr>`;
   const R=(t,o={})=>`<w:r>${rp(o)}<w:t xml:space="preserve">${xe(t)}</w:t></w:r>`;
   const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.center?0:240}" w:after="240"/><w:jc w:val="${o.center?'center':'both'}"/>${rp(o.r||{})}</w:pPr>${runs}</w:p>`;
-  const texts=t=>String(t||'').split(/\n\s*\n|\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(R(x))).join('');
+  const texts=t=>String(t||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(x.split('\n').map(l=>R(l.trim())).join('<w:r><w:br/></w:r>'))).join('');
   const kv=(l,v,unit)=>P(R(l+' ')+(v?R(v+(unit||''),{b:1}):''));
   let b=P(R(title,{b:1,sz:28}),{center:1,r:{b:1,sz:28}})+P('',{center:1});
   b+=P(R('ALAP ADATOK:',{b:1,i:1,u:1}));
@@ -1377,6 +1386,7 @@ document.addEventListener('click',e=>{
   if(ds.evper){S.evPeriod=ds.evper;S.evUI._adding=null;renderEv();return}
   if(ds.evname){S.evName=evNames()[Number(ds.evname)];S.evUI._adding=null;renderEv();window.scrollTo(0,0);return}
   if(ds.evattend){evTouch(curEval()).attend=String(evStats(S.evName).pct);saveCache();renderEv();return}
+  if(ds.evmonths){const e=evTouch(curEval());const t=evMonthly(S.evName);e.attendText=(e.attendText?e.attendText.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.evfact){const e=evTouch(curEval());const t=evAttendFact(evStats(S.evName));e.attendText=(e.attendText?e.attendText.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.evdocx){exportEvDocx();return}
   if(ds.evagereset){const e=curEval();e.ageManual=false;if(!e.started)e.started=todayStr();const a=ageAt(dobOf(S.evName),e.started);if(a!=null)e.age=String(a);saveCache();renderEv();return}
