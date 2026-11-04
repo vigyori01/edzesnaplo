@@ -1389,7 +1389,7 @@ document.addEventListener('click',e=>{
   if(ds.evfact){const e=evTouch(curEval());const t=evAttendFact(evStats(S.evName));e.attendText=(e.attendText?e.attendText.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.evdocx){exportEvDocx();return}
   if(ds.evagereset){const e=curEval();e.ageManual=false;if(!e.started)e.started=todayStr();const a=ageAt(dobOf(S.evName),e.started);if(a!=null)e.age=String(a);saveCache();renderEv();return}
-  if(ds.evres){const e=evTouch(curEval());const rs=evStats(S.evName).results;const t=`A szezon versenyeredményei: ${rs.map(r=>`${r.reg} ${r.rank}${r.fleet?'/'+r.fleet:'.'}${r.cat?` (${r.cat})`:''}`).join(', ')}.`;
+  if(ds.evres){const e=evTouch(curEval());const rs=evStats(S.evName).results;const t='A szezon versenyeredményei:\n'+rs.map(r=>`${r.reg} ${r.rank}${r.fleet?'/'+r.fleet:'.'}${r.cat?` (${r.cat})`:''}`).join(',\n')+'.';
     e.summary=(e.summary?e.summary.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.resopen){const R=getRes(Number(S.form.date.slice(0,4)),S.form.race);if(R&&R.fileKey)openResFile(R.fileKey);return}
   if(ds.resdel){const R=getRes(Number(S.form.date.slice(0,4)),S.form.race);if(R){delete R.fileKey;delete R.fileName;saveCache()}renderForm();return}
