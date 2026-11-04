@@ -191,6 +191,7 @@ html,body{touch-action:manipulation}
 @media (max-width:760px){input,textarea,select,.addrow input,input.chip{font-size:16px!important}}
 .dob-list{display:flex;flex-direction:column;gap:6px}
 .dob-row{display:grid;grid-template-columns:minmax(0,1fr) 160px 64px;gap:8px;align-items:center}
+.dob-row .txt.bad{border-color:var(--buoy);box-shadow:0 0 0 2px var(--buoy-soft)}
 .dob-row .dn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dob-row .da{color:var(--muted);font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:420px){.dob-row{grid-template-columns:minmax(0,1fr) 150px}.dob-row .da{grid-column:1 / -1;text-align:left;margin-top:-4px}}
@@ -1091,6 +1092,10 @@ function evNames(){
 /* ---------- birth dates & age ---------- */
 function dobOf(n){return (S.options.dob||{})[n]||''}
 function ageAt(dob,date){if(!dob||!date)return null;const [by,bm,bd]=dob.split('-').map(Number),[y,m,d]=date.split('-').map(Number);let a=y-by;if(m<bm||(m===bm&&d<bd))a--;return a>=0&&a<120?a:null}
+/* birth date typed as 2009.07.11 -> stored as 2009-07-11 */
+function dotFmt(v){const d=String(v).replace(/\D/g,'').slice(0,8);return d.length>6?d.slice(0,4)+'.'+d.slice(4,6)+'.'+d.slice(6):d.length>4?d.slice(0,4)+'.'+d.slice(4):d}
+function parseDot(v){const m=String(v).trim().match(/^(\d{4})[.\-/ ]?\s*(\d{1,2})[.\-/ ]?\s*(\d{1,2})\.?$/);if(!m)return null;const y=+m[1],mo=+m[2],d=+m[3];
+  const dt=new Date(y,mo-1,d);if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d||y<1900||dt>new Date())return null;return iso(dt)}
 function huDate(x){return x?x.replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$1. $2. $3.'):''}
 /* the first edit of an evaluation fixes its date; the age is calculated for that day from the birth date */
 function evTouch(e){if(!e.started){e.started=todayStr();if(String(e.age||'').trim())e.ageManual=true;else{const a=ageAt(dobOf(S.evName),e.started);if(a!=null)e.age=String(a)}}return e}
@@ -1217,7 +1222,7 @@ function renderSet(){
   <div class="row2"><button class="btn" data-export="1">${y} szezon letöltése (.xlsx)</button></div></div>
   <div class="panel" style="margin-top:8px"><h4 style="margin:0">Versenyzők születési dátuma</h4><p>Ebből számolja az alkalmazás a tavaszi és őszi kiértékelés korát. A kor a kiértékelés első szerkesztésének napjára rögzül.</p>
   <div class="dob-list">${list('athletes').filter(n=>!isHidden('athletes',n)).map((n,i)=>{const d=dobOf(n);const a=ageAt(d,todayStr());
-    return `<div class="dob-row"><span class="dn">${esc(n)}</span><input type="date" class="txt" data-dob="${i}" value="${esc(d)}" aria-label="${esc(n)} születési dátuma"><span class="da">${a!=null?a+' éves':''}</span></div>`}).join('')}</div></div>
+    return `<div class="dob-row"><span class="dn">${esc(n)}</span><input type="text" class="txt" data-dob="${i}" value="${esc(d?d.replace(/-/g,'.'):'')}" inputmode="numeric" maxlength="10" placeholder="éééé.hh.nn" autocomplete="off" aria-label="${esc(n)} születési dátuma (éééé.hh.nn)"><span class="da">${a!=null?a+' éves':''}</span></div>`}).join('')}</div></div>
   <div class="panel" style="margin-top:8px"><p>Az adatok ebben a böngészőben, ezen az eszközön tárolódnak. Készíts rendszeresen biztonsági mentést, ezzel tudod átvinni őket másik gépre vagy telefonra is.${(()=>{let b=null;try{b=localStorage.getItem('edz.lastBackup')}catch(e){}return b?` Utolsó mentés: ${b}.`:' Még nem készült mentés.'})()}</p>
   <div class="row2"><button class="btn" data-backup="1">Biztonsági mentés (.json)</button>
   <label class="btn sec" for="restore-file" style="cursor:pointer">Visszatöltés mentésből</label>
@@ -1419,6 +1424,7 @@ document.addEventListener('input',e=>{
     const e=R.entries[a]=R.entries[a]||{};const k=t.dataset.res;const v=t.value.trim();
     if(k==='rank'||k==='fleet'){const n=parseInt(v,10);if(isFinite(n)&&n>0)e[k]=n;else delete e[k]}else{if(v)e[k]=v;else delete e[k]}
     if(!Object.keys(e).length)delete R.entries[a];repSaveSoon()}
+  if(t.matches&&t.matches('[data-dob]')){const f=dotFmt(t.value);if(f!==t.value&&!/[^\d.]/.test(t.value.replace(/\D/g,'')))t.value=f;t.classList.remove('bad');if(f.length===10&&parseDot(f))t.dispatchEvent(new Event('change',{bubbles:true}))}
   if(t.dataset&&t.dataset.evf&&S.evName){const e=curEval();if(t.dataset.evf==='age'){if(!e.started)e.started=todayStr();e.ageManual=true}else evTouch(e);e[t.dataset.evf]=t.value;if(t.tagName==='TEXTAREA')autoGrow(t);repSaveSoon()}
   if(t.dataset&&t.dataset.repov){getRep(S.repGroup,S.repMonth).overview=t.value;autoGrow(t);repSaveSoon()}
   if(t.dataset&&t.dataset.repn!=null&&t.dataset.repn!==undefined&&t.classList.contains('rep')){const n=S._repOrder[Number(t.dataset.repn)];getRep(S.repGroup,S.repMonth).notes[n]=t.value;autoGrow(t);repSaveSoon()}
@@ -1433,8 +1439,9 @@ document.addEventListener('change',e=>{
   if(t.id==='p-from'){S.plan.from=t.value;renderSet()}
   if(t.id==='p-to'){S.plan.to=t.value;renderSet()}
   if(t.dataset.ren){S._open=t.dataset.ren;renameOption(t.dataset.ren,t.dataset.old,t.value)}
-  if(t.dataset.dob!=null&&t.matches('[data-dob]')){const n=list('athletes').filter(x=>!isHidden('athletes',x))[Number(t.dataset.dob)];S.options.dob=Object.assign({},S.options.dob||{});
-    if(t.value)S.options.dob[n]=t.value;else delete S.options.dob[n];saveCache();renderSet();toast('Születési dátum mentve')}
+  if(t.dataset.dob!=null&&t.matches('[data-dob]')){const n=list('athletes').filter(x=>!isHidden('athletes',x))[Number(t.dataset.dob)];
+    const v=t.value.trim();let val=null;if(v){val=parseDot(v);if(!val){t.classList.add('bad');toast('Hibás dátum – így add meg: 2009.07.11');return}}
+    S.options.dob=Object.assign({},S.options.dob||{});if(val)S.options.dob[n]=val;else delete S.options.dob[n];saveCache();renderSet();toast(val?'Születési dátum mentve':'Születési dátum törölve')}
   if(t.id==='res-file'&&t.files&&t.files[0]&&S.form){const f=S.form;attachResFile(Number(f.date.slice(0,4)),f.race,t.files[0]).then(()=>{if(S.form)renderForm()})}
   if(t.id==='rep-import'&&t.files&&t.files[0]){importReportFile(t.files[0]);t.value='';return}
   if(t.id==='restore-first'&&t.files&&t.files.length){importBackup([...t.files]);return}
