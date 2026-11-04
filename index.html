@@ -1147,7 +1147,7 @@ function evMonthly(name){const y=curSeason();const mine=Object.values(S.sessions
     if(isVer(s)){d.vt++;vT++;if(at){d.va++;vA++}}else{d.t++;if(at)d.a++;tT++;if(at)aT++}});
   const cap=w=>w.charAt(0).toUpperCase()+w.slice(1);
   const lines=Object.keys(by).map(Number).sort((a,b)=>a-b).map(m=>{const d=by[m];const parts=[];if(d.t)parts.push(`${d.a}/${d.t} edzésnap`);if(d.vt)parts.push(`${d.va}/${d.vt} versenynap`);return `${cap(MONTHS[m-1])}: ${parts.join(', ')}`});
-  return ['Havi edzéslátogatás:',...lines,`Összesen: ${aT}/${tT} edzésnap${vT?`, ${vA}/${vT} versenynap`:''} (${(tT+vT)?Math.round((aT+vA)/(tT+vT)*100):0}%)`].join('\n')}
+  return ['Havi edzéslátogatás:',...lines,`Összesen: ${aT}/${tT} edzésnap (${tT?Math.round(aT/tT*100):0}%)${vT?`, ${vA}/${vT} versenynap (${Math.round(vA/vT*100)}%)`:''}`].join('\n')}
 function evAttendFact(st){let t=`A szezonban a csapat ${st.tT+st.tV} napjából (${st.tT} edzés- és ${st.tV} versenynap) ${st.aT+st.aV} napon vett részt (${st.pct}%): ${st.aT} edzésnapon és ${st.aV} versenynapon${st.heats?` (${st.heats} futam)`:''}.`;if(st.races.length)t+=` Versenyek: ${st.races.join(', ')}.`;return t}
 function renderEv(){
   const names=evNames();
