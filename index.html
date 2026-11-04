@@ -1095,7 +1095,7 @@ function evStats(name){
   const heats=aV.reduce((a,s)=>a+(Number(s.heats)||0),0),mins=[...aT,...aV].reduce((a,s)=>a+minsOf(s),0);
   const months={};team.forEach(s=>{const m=Number(s.date.slice(5,7));months[m]=months[m]||[0,0];months[m][1]++;if(s.athletes.includes(name))months[m][0]++});
   const results=seasonResults(y).filter(r=>r.entries&&r.entries[name]&&r.entries[name].rank).map(r=>({reg:r.reg,...r.entries[name]}));
-  return {results,tT:tT.length,aT:aT.length,tV:tV.length,aV:aV.length,heats,mins,pct:tT.length?Math.round(aT.length/tT.length*100):0,races:raceTxt(raceList(aV)),months};
+  return {results,tT:tT.length,aT:aT.length,tV:tV.length,aV:aV.length,heats,mins,pct:(tT.length+tV.length)?Math.round((aT.length+aV.length)/(tT.length+tV.length)*100):0,races:raceTxt(raceList(aV)),months};
 }
 function evNames(){
   const y=curSeason();const set=new Set();
@@ -1143,13 +1143,12 @@ function evDone(per,name){const e=S.evals[evKey(per,name)];return !!(e&&EV_SECTI
 function evMonthly(name){const y=curSeason();const mine=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&(s.athletes||[]).includes(name));
   const gc={};mine.forEach(s=>{if(s.group)gc[s.group]=(gc[s.group]||0)+1});const g=Object.entries(gc).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
   const team=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&s.status!=='terv'&&(s.athletes||[]).length&&(!g||s.group===g));
-  const by={};let tT=0,aT=0;team.forEach(s=>{const m=Number(s.date.slice(5,7));const d=by[m]=by[m]||{t:0,a:0,vt:0,va:0};const at=s.athletes.includes(name);
-    if(isVer(s)){d.vt++;if(at)d.va++}else{d.t++;if(at)d.a++;tT++;if(at)aT++}});
+  const by={};let tT=0,aT=0,vT=0,vA=0;team.forEach(s=>{const m=Number(s.date.slice(5,7));const d=by[m]=by[m]||{t:0,a:0,vt:0,va:0};const at=s.athletes.includes(name);
+    if(isVer(s)){d.vt++;vT++;if(at){d.va++;vA++}}else{d.t++;if(at)d.a++;tT++;if(at)aT++}});
   const cap=w=>w.charAt(0).toUpperCase()+w.slice(1);
   const lines=Object.keys(by).map(Number).sort((a,b)=>a-b).map(m=>{const d=by[m];const parts=[];if(d.t)parts.push(`${d.a}/${d.t} edzésnap`);if(d.vt)parts.push(`${d.va}/${d.vt} versenynap`);return `${cap(MONTHS[m-1])}: ${parts.join(', ')}`});
-  return ['Havi edzéslátogatás:',...lines,`Összesen: ${aT}/${tT} edzésnap (${tT?Math.round(aT/tT*100):0}%)`].join('\n')}
-function evAttendFact(st){let t=`A szezonban a csapat ${st.tT} edzésnapjából ${st.aT} napon vett részt (${st.pct}%)`;
-  t+=st.aV?`, emellett ${st.aV} versenynapon versenyzett${st.heats?` (${st.heats} futam)`:''}.`:'.';if(st.races.length)t+=` Versenyek: ${st.races.join(', ')}.`;return t}
+  return ['Havi edzéslátogatás:',...lines,`Összesen: ${aT}/${tT} edzésnap${vT?`, ${vA}/${vT} versenynap`:''} (${(tT+vT)?Math.round((aT+vA)/(tT+vT)*100):0}%)`].join('\n')}
+function evAttendFact(st){let t=`A szezonban a csapat ${st.tT+st.tV} napjából (${st.tT} edzés- és ${st.tV} versenynap) ${st.aT+st.aV} napon vett részt (${st.pct}%): ${st.aT} edzésnapon és ${st.aV} versenynapon${st.heats?` (${st.heats} futam)`:''}.`;if(st.races.length)t+=` Versenyek: ${st.races.join(', ')}.`;return t}
 function renderEv(){
   const names=evNames();
   if(!names.length){$('#main').innerHTML=`<div class="empty"><h3>Nincs versenyző</h3>Ebben a szezonban még nincs rögzített résztvevő.</div>`;return}
@@ -1161,7 +1160,7 @@ function renderEv(){
   <div class="sub" id="ev-sum" style="margin-bottom:6px">${evSummary(per,names)}</div>
   <div class="chips" id="ev-chips" style="margin-bottom:14px">${evChips(per,names,name)}</div>
   <div class="panel"><h2 class="rep-title">Versenyző ${T.toLowerCase()} kiértékelés</h2>${progBar(evReady(e),'ev-prog')}
-    <div class="rep-kv"><span><b>${esc(name)}</b></span><span>Edzéslátogatás: <b>${st.pct}%</b> (${st.aT}/${st.tT} nap)</span><span>Versenynap: <b>${st.aV}</b></span><span>Futamok: <b>${st.heats}</b></span><span>Vízen: <b>${hmLong(st.mins)}</b></span></div>
+    <div class="rep-kv"><span><b>${esc(name)}</b></span><span>Látogatás: <b>${st.pct}%</b> (${st.aT+st.aV}/${st.tT+st.tV} nap, edzés + verseny)</span><span>Versenynap: <b>${st.aV}</b></span><span>Futamok: <b>${st.heats}</b></span><span>Vízen: <b>${hmLong(st.mins)}</b></span></div>
     ${st.races.length?`<p>Versenyek: ${esc(st.races.join(', '))}</p>`:''}
     ${st.results.length?`<p>Eredmények: <b>${esc(st.results.map(r=>`${r.reg} ${r.rank}${r.fleet?'/'+r.fleet:'.'}`).join(' → '))}</b></p>`:''}
     <p>Havonta: ${Object.keys(st.months).sort((a,b)=>a-b).map(m=>`${MONTHS[m-1].slice(0,3)}. ${st.months[m][0]}/${st.months[m][1]}`).join(' · ')}</p>
