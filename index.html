@@ -2,7 +2,7 @@
 <html lang="hu">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0d5c6b">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" type="image/png">
@@ -187,6 +187,8 @@ textarea.rep{min-height:110px;line-height:1.45}
 .res-tbl div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px}
 .res-tbl .pl{font-variant-numeric:tabular-nums;font-weight:700}
 .res-tbl .cl{color:var(--muted)}
+html,body{touch-action:manipulation}
+@media (max-width:760px){input,textarea,select,.addrow input,input.chip{font-size:16px!important}}
 .ni{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 button.sync{background:none;border:0;padding:4px 0;cursor:pointer}
 .pblocks{display:flex;flex-direction:column;gap:8px}
@@ -308,8 +310,19 @@ const COLS=['sessions','reports','evals','results'];
 const HASH={};let LOADED=false;
 function recHash(r){if(!r)return '';const o={};for(const k of Object.keys(r).sort())if(k!=='_u'&&k!=='updated'&&k[0]!=='_')o[k]=r[k];return JSON.stringify(o)}
 function recT(r){return r?Math.max(Number(r._u)||0,Number(r.updated)||0):0}
+const FCOLS={reports:1,evals:1};const HASHF={};
+const isEmptyV=v=>v==null||v===''||(Array.isArray(v)&&!v.length)||(typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length);
+function fieldsOf(c,r){const o={};if(!r)return o;
+  if(c==='reports'){o.overview=r.overview||'';o.skip=r.skip||[];o.extra=r.extra||[];for(const [n,t] of Object.entries(r.notes||{}))o['n:'+n]=t||''}
+  else for(const [k,v] of Object.entries(r))if(k[0]!=='_')o[k]=v;return o}
+function setField(c,r,f,v){if(c==='reports'){if(f.startsWith('n:')){r.notes=r.notes||{};r.notes[f.slice(2)]=v}else r[f]=v}else r[f]=v}
+function stampFields(c,k,r,bump,now){r._f=r._f||{};let any=false;
+  for(const [f,v] of Object.entries(fieldsOf(c,r))){const hk=c+'/'+k+'/'+f,h=JSON.stringify(v);
+    if(bump&&LOADED&&(HASHF[hk]===undefined?!isEmptyV(v):HASHF[hk]!==h)){r._f[f]=now;any=true}HASHF[hk]=h}
+  if(any)r._u=now}
 function stampAll(bump){const now=Date.now();
-  for(const c of COLS)for(const [k,r] of Object.entries(S[c])){const h=recHash(r),hk=c+'/'+k;
+  for(const c of Object.keys(FCOLS))for(const [k,r] of Object.entries(S[c]))stampFields(c,k,r,bump,now);
+  for(const c of COLS)for(const [k,r] of Object.entries(S[c])){if(FCOLS[c])continue;const h=recHash(r),hk=c+'/'+k;
     if(bump&&LOADED&&HASH[hk]!==h){r._u=now;if(c==='sessions')r.updated=now}HASH[hk]=h}
   const oh=recHash(S.options);if(bump&&LOADED&&HASH.options!==oh)S.options._u=now;HASH.options=oh}
 function persist(){lsSet(LS_CACHE,{sessions:S.sessions,options:S.options,reports:S.reports,evals:S.evals,results:S.results,deleted:S.deleted})}
@@ -319,6 +332,13 @@ function snapshot(){return {app:'edzesnaplo',version:2,sessions:S.sessions,optio
 function mergeIn(d,preferIncoming){let ch=false;if(!d||typeof d!=='object')return false;
   for(const [k,v] of Object.entries(d.deleted||{}))if((S.deleted[k]||0)<v){S.deleted[k]=v;ch=true}
   for(const c of COLS){const src=d[c]||{};for(const [k,r] of Object.entries(src)){if(!r||typeof r!=='object')continue;const l=S[c][k];
+    if(FCOLS[c]){if(!l){if(Object.values(fieldsOf(c,r)).some(v=>!isEmptyV(v))){S[c][k]=r;ch=true}continue}
+      /* field by field: newer field wins; an empty value never replaces text unless it is genuinely newer */
+      const lf=fieldsOf(c,l),rf=fieldsOf(c,r);l._f=l._f||{};const rt=r._f||{};
+      for(const f of new Set([...Object.keys(lf),...Object.keys(rf)])){if(!(f in rf))continue;const lv=lf[f],rv=rf[f],lt=l._f[f]||0,ft=rt[f]||0;
+        if(JSON.stringify(lv)===JSON.stringify(rv))continue;
+        if(ft>lt||(ft===lt&&isEmptyV(lv)&&!isEmptyV(rv))||(preferIncoming&&ft===lt&&!isEmptyV(rv))){setField(c,l,f,clone(rv));l._f[f]=ft;ch=true}}
+      l._u=Math.max(recT(l),recT(r));continue}
     if(!l||recT(r)>recT(l)||(preferIncoming&&recT(r)===recT(l)&&recHash(r)!==recHash(l))){S[c][k]=r;ch=true}}}
   for(const [p,ts] of Object.entries(S.deleted)){const [c,id]=[p.slice(0,p.indexOf('/')),p.slice(p.indexOf('/')+1)];if(S[c]&&S[c][id]&&recT(S[c][id])<=ts){delete S[c][id];ch=true}}
   const localDefault=!S.options._u&&!(S.options.athletes||[]).length&&!(S.options.locations||[]).length;
@@ -430,6 +450,7 @@ async function syncNow(interactive){
 let syncT=null;function scheduleSync(){if(!DRIVE.on)return;clearTimeout(syncT);syncT=setTimeout(()=>syncNow(false),2500)}
 async function driveFileBlob(id){const r=await gapi(`/drive/v3/files/${id}?alt=media`);return await r.blob()}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncNow(false)});
+document.addEventListener('gesturestart',e=>e.preventDefault());
 window.addEventListener('online',()=>syncNow(false));
 setInterval(()=>{if(document.visibilityState==='visible')syncNow(false)},60000);
 /* a token expired: the next tap anywhere renews it (browsers only allow the Google popup after a tap) */
@@ -912,12 +933,61 @@ function sailorOrder(g,ym,days){
   list('athletes').forEach(n=>{if(inData.has(n))add(n)});inData.forEach(add);r.extra.forEach(add);
   return order;
 }
+/* read word/document.xml out of a .docx (stored or deflated zip) */
+async function docxParagraphs(file){
+  const buf=new Uint8Array(await file.arrayBuffer());const dv=new DataView(buf.buffer);let eocd=-1;
+  for(let i=buf.length-22;i>=Math.max(0,buf.length-70000);i--)if(dv.getUint32(i,true)===0x06054b50){eocd=i;break}
+  if(eocd<0)throw new Error('Ez nem Word (.docx) fájl');
+  let p=dv.getUint32(eocd+16,true);const n=dv.getUint16(eocd+10,true);let entry=null;
+  for(let i=0;i<n;i++){const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+    const name=new TextDecoder().decode(buf.subarray(p+46,p+46+nl));if(name==='word/document.xml'){entry={method,csize,off};break}p+=46+nl+xl+cl}
+  if(!entry)throw new Error('A Word-fájlban nem találom a szöveget');
+  const lnl=dv.getUint16(entry.off+26,true),lxl=dv.getUint16(entry.off+28,true);const data=buf.subarray(entry.off+30+lnl+lxl,entry.off+30+lnl+lxl+entry.csize);
+  let xml;if(entry.method===0)xml=new TextDecoder().decode(data);
+  else{if(typeof DecompressionStream==='undefined')throw new Error('Ez a böngésző nem tudja kibontani a Word-fájlt – próbáld a mentésfájllal (.json)');
+    xml=await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text()}
+  const doc=new DOMParser().parseFromString(xml,'application/xml');const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  return [...doc.getElementsByTagNameNS(W,'p')].map(pp=>{let t='';pp.querySelectorAll('*').forEach(el=>{if(el.namespaceURI!==W)return;if(el.localName==='t')t+=el.textContent;else if(el.localName==='tab')t+=' ';else if(el.localName==='br')t+='\n'});return t.replace(/[  ]+/g,' ').trim()}).filter(Boolean)}
+function normName(x){return String(x).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z ]/g,' ').split(/\s+/).filter(Boolean)}
+function matchAthlete(name){const all=list('athletes');if(all.includes(name))return name;const t=normName(name);
+  let hit=all.find(a=>normName(a).join(' ')===t.join(' '));if(hit)return hit;
+  hit=all.filter(a=>normName(a).every(k=>t.includes(k)));if(hit.length===1)return hit[0];
+  hit=all.filter(a=>normName(a)[0]===t[0]&&normName(a)[1]&&t[1]&&normName(a)[1].slice(0,4)===t[1].slice(0,4));if(hit.length===1)return hit[0];
+  return name}
+function parseReport(paras){
+  const m=paras[0]&&paras[0].match(/^(.*?)\s+Csapat\s+(\S+)\s+Beszámoló/i);if(!m)throw new Error('Nem találom a címet (pl. „ILCA Csapat Májusi Beszámoló”)');
+  const mi=MADJ.findIndex(x=>x.toLowerCase()===m[2].toLowerCase());if(mi<0)throw new Error('Ismeretlen hónap a címben: '+m[2]);
+  const out={group:m[1].trim(),ym:curSeason()+'-'+String(mi+1).padStart(2,'0'),overview:[],notes:{},order:[]};let cur=null;
+  for(const t of paras.slice(1)){if(/^Edzésnapok\s*:/i.test(t)||/^Áttekintés\s*:?$/i.test(t))continue;
+    const h=t.match(/^(.+?)\s+[-–—]\s+(\S+)\s+nap$/);
+    if(h){cur=matchAthlete(h[1].replace(/\s+/g,' ').trim());if(!out.order.includes(cur))out.order.push(cur);out.notes[cur]=out.notes[cur]||[];continue}
+    (cur?out.notes[cur]:out.overview).push(t)}
+  out.overview=out.overview.join('\n\n');for(const k of Object.keys(out.notes))out.notes[k]=out.notes[k].join('\n\n');return out}
+function repHasText(r){return !!r&&(!!(r.overview||'').trim()||Object.values(r.notes||{}).some(t=>(t||'').trim()))}
+function applyReportImport(imp,mode){
+  const g=repGroups().includes(imp.group)?imp.group:(S.repGroup||imp.group);const r=getRep(g,imp.ym);
+  if(mode==='replace'||!(r.overview||'').trim())r.overview=imp.overview||r.overview;
+  for(const n of imp.order){const t=imp.notes[n]||'';if(mode==='replace'||!(r.notes[n]||'').trim())r.notes[n]=t;
+    if(!repDays(g,imp.ym).some(d=>d.athletes.includes(n))&&!r.extra.includes(n))r.extra.push(n);r.skip=r.skip.filter(x=>x!==n)}
+  S.repGroup=g;S.repMonth=imp.ym;S._repImport=null;saveCache();renderRep();window.scrollTo(0,0);
+  toast(`Importálva: ${MONTHS[Number(imp.ym.slice(5))-1]} – ${imp.order.length} versenyző`)}
+async function importReportFile(file){
+  try{
+    if(/\.json$/i.test(file.name)){await importBackup([file]);S.tab='rep';render();return}
+    const imp=parseReport(await docxParagraphs(file));
+    const g=repGroups().includes(imp.group)?imp.group:(S.repGroup||imp.group);const ex=S.reports[repKey(g,imp.ym)];
+    if(repHasText(ex)){S._repImport=imp;S.repGroup=g;S.repMonth=imp.ym;renderRep();window.scrollTo(0,0)}else applyReportImport(imp,'replace');
+  }catch(e){toast(e.message||'Az importálás nem sikerült')}}
 function renderRep(){
   const groups=repGroups();if(!S.repGroup||!groups.includes(S.repGroup))S.repGroup=groups[0]||'';
   const g=S.repGroup;const months=repMonths(g);
   if(!S.repMonth||!months.includes(S.repMonth)){const t=todayStr().slice(0,7);S.repMonth=[...months].reverse().find(m=>m<=t)||months[months.length-1]||null}
   let h='';
   if(groups.length>1)h+=`<div class="toolbar">${groups.map(x=>`<button class="chip ${x===g?'on':''}" data-repg="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
+  h+=`<div class="toolbar"><label class="chip" for="rep-import">Beszámoló importálása (.docx / mentés)</label><input type="file" id="rep-import" accept=".docx,.json,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></div>`;
+  if(S._repImport){const im=S._repImport;h+=`<div class="panel" style="margin-bottom:12px;border-color:var(--buoy)"><b>A ${esc(MONTHS[Number(im.ym.slice(5))-1])} havi beszámolóban már van szöveg.</b>
+    <p>Az importált fájlban ${im.order.length} versenyző szövege és ${im.overview?'egy':'nincs'} áttekintés van.</p>
+    <div class="row2"><button class="btn" data-repimp="replace">Felülírás az importálttal</button><button class="btn sec" data-repimp="fill">Csak az üres részek kitöltése</button><button class="btn sec" data-repimp="cancel">Mégse</button></div></div>`}
   if(!months.length){$('#main').innerHTML=h+`<div class="empty"><h3>Nincs adat</h3>A ${curSeason()} szezonban még nincs lezárt nap résztvevőkkel.</div>`;return}
   h+=`<div class="toolbar">${months.map(m=>`<button class="chip ${m===S.repMonth?'on':''}" data-repm="${m}">${MONTHS[Number(m.slice(5))-1]}</button>`).join('')}</div>`;
   const ym=S.repMonth,days=repDays(g,ym),st=repStats(days),r=getRep(g,ym),pr=S.reports[repKey(g,prevYm(ym))];
@@ -1243,6 +1313,7 @@ document.addEventListener('click',e=>{
     if(zero&&r.extra.includes(n)&&!(r.notes[n]||'').trim())r.extra=r.extra.filter(x=>x!==n);else if(!r.skip.includes(n))r.skip.push(n);saveCache();renderRep();return}
   if(ds.repunskip){const r=getRep(S.repGroup,S.repMonth);const n=S._repOrder[Number(ds.repunskip)];r.skip=r.skip.filter(x=>x!==n);saveCache();renderRep();return}
   if(ds.repdocx){exportDocx();return}
+  if(ds.repimp){const im=S._repImport;if(ds.repimp==='cancel'||!im){S._repImport=null;renderRep();return}applyReportImport(im,ds.repimp);return}
   if(ds.evper){S.evPeriod=ds.evper;S.evUI._adding=null;renderEv();return}
   if(ds.evname){S.evName=evNames()[Number(ds.evname)];S.evUI._adding=null;renderEv();window.scrollTo(0,0);return}
   if(ds.evattend){curEval().attend=String(evStats(S.evName).pct);saveCache();renderEv();return}
@@ -1339,6 +1410,7 @@ document.addEventListener('change',e=>{
   if(t.id==='p-to'){S.plan.to=t.value;renderSet()}
   if(t.dataset.ren){S._open=t.dataset.ren;renameOption(t.dataset.ren,t.dataset.old,t.value)}
   if(t.id==='res-file'&&t.files&&t.files[0]&&S.form){const f=S.form;attachResFile(Number(f.date.slice(0,4)),f.race,t.files[0]).then(()=>{if(S.form)renderForm()})}
+  if(t.id==='rep-import'&&t.files&&t.files[0]){importReportFile(t.files[0]);t.value='';return}
   if(t.id==='restore-first'&&t.files&&t.files.length){importBackup([...t.files]);return}
   if(t.id==='restore-file'&&t.files&&t.files.length){S._restoreFile=[...t.files];S._restoreAsk=true;renderSet()}
 });
