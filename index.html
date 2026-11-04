@@ -984,11 +984,10 @@ function renderRep(){
   if(!S.repMonth||!months.includes(S.repMonth)){const t=todayStr().slice(0,7);S.repMonth=[...months].reverse().find(m=>m<=t)||months[months.length-1]||null}
   let h='';
   if(groups.length>1)h+=`<div class="toolbar">${groups.map(x=>`<button class="chip ${x===g?'on':''}" data-repg="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
-  h+=`<div class="toolbar"><label class="chip" for="rep-import">Beszámoló importálása (.docx / mentés)</label><input type="file" id="rep-import" accept=".docx,.json,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></div>`;
   if(S._repImport){const im=S._repImport;h+=`<div class="panel" style="margin-bottom:12px;border-color:var(--buoy)"><b>A ${esc(MONTHS[Number(im.ym.slice(5))-1])} havi beszámolóban már van szöveg.</b>
     <p>Az importált fájlban ${im.order.length} versenyző szövege és ${im.overview?'egy':'nincs'} áttekintés van.</p>
     <div class="row2"><button class="btn" data-repimp="replace">Felülírás az importálttal</button><button class="btn sec" data-repimp="fill">Csak az üres részek kitöltése</button><button class="btn sec" data-repimp="cancel">Mégse</button></div></div>`}
-  if(!months.length){$('#main').innerHTML=h+`<div class="empty"><h3>Nincs adat</h3>A ${curSeason()} szezonban még nincs lezárt nap résztvevőkkel.</div>`;return}
+  if(!months.length){$('#main').innerHTML=h+`<div class="empty"><h3>Nincs adat</h3>A ${curSeason()} szezonban még nincs lezárt nap résztvevőkkel.</div><div class="rep-foot"><label class="btn sec" for="rep-import" style="text-align:center;cursor:pointer">Beszámoló importálása (.docx / mentés)</label><input type="file" id="rep-import" accept=".docx,.json,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></div>`;return}
   h+=`<div class="toolbar">${months.map(m=>`<button class="chip ${m===S.repMonth?'on':''}" data-repm="${m}">${MONTHS[Number(m.slice(5))-1]}</button>`).join('')}</div>`;
   const ym=S.repMonth,days=repDays(g,ym),st=repStats(days),r=getRep(g,ym),pr=S.reports[repKey(g,prevYm(ym))];
   const title=`${g} Csapat ${MADJ[Number(ym.slice(5))-1]} Beszámoló`;
@@ -1013,7 +1012,7 @@ function renderRep(){
   const cand=list('athletes').filter(n=>!isHidden('athletes',n)&&!order.includes(n));
   h+=`<div class="sailor" style="margin-top:12px"><h4>Versenyző hozzáadása</h4><div class="meta">Akkor is felveheted, ha ebben a hónapban egy napon sem volt ott (0 nap).</div>${chips('rep','repath',cand,()=>false,{ph:'Vezetéknév Keresztnév'})}</div>`;
   if(skipped.length)h+=`<div class="sub" style="margin-top:12px">Kihagyva: ${skipped.map(n=>`<button class="chip ghost" data-repunskip="${order.indexOf(n)}">${esc(n)} ↺</button>`).join(' ')}</div>`;
-  h+=`<div class="rep-foot"><button class="btn" data-repdocx="1">Beszámoló letöltése (.docx)</button><span class="sub" style="text-align:center">${esc(title)} · Word-fájl, az eredeti formátumban</span></div>`;
+  h+=`<div class="rep-foot"><button class="btn" data-repdocx="1">Beszámoló letöltése (.docx)</button><span class="sub" style="text-align:center">${esc(title)} · Word-fájl, az eredeti formátumban</span><label class="btn sec" for="rep-import" style="text-align:center;cursor:pointer">Beszámoló importálása (.docx / mentés)</label><input type="file" id="rep-import" accept=".docx,.json,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></div>`;
   $('#main').innerHTML=h;
   document.querySelectorAll('textarea.rep').forEach(autoGrow);
 }
