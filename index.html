@@ -1201,8 +1201,8 @@ function buildEvDocx(title,e){
   const F='<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>';
   const rp=o=>`<w:rPr>${F}${o.b?'<w:b/><w:bCs/>':''}${o.i?'<w:i/><w:iCs/>':''}<w:sz w:val="${o.sz||24}"/><w:szCs w:val="${o.sz||24}"/>${o.u?'<w:u w:val="single"/>':''}</w:rPr>`;
   const R=(t,o={})=>`<w:r>${rp(o)}<w:t xml:space="preserve">${xe(t)}</w:t></w:r>`;
-  const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.center?0:240}" w:after="240"/><w:jc w:val="${o.center?'center':'both'}"/>${rp(o.r||{})}</w:pPr>${runs}</w:p>`;
-  const texts=t=>String(t||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(x.split('\n').map(l=>R(l.trim())).join('<w:r><w:br/></w:r>'))).join('');
+  const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.center?0:240}" w:after="240"/><w:jc w:val="${o.center?'center':o.left?'left':'both'}"/>${rp(o.r||{})}</w:pPr>${runs}</w:p>`;
+  const texts=t=>String(t||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(x.split('\n').map(l=>R(l.trim())).join('<w:r><w:br/></w:r>'),{left:/^Havi edzéslátogatás/i.test(x)})).join('');
   const kv=(l,v,unit)=>P(R(l+' ')+(v?R(v+(unit||''),{b:1}):''));
   let b=P(R(title,{b:1,sz:28}),{center:1,r:{b:1,sz:28}})+P('',{center:1});
   b+=P(R('ALAP ADATOK:',{b:1,i:1,u:1}));
