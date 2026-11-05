@@ -437,7 +437,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=16;
+const APP_VERSION=17;
 const DEFAULT_CLIENT_ID='29057013726-bjqcvqo61n3mk0c932002e4usjfafr1a.apps.googleusercontent.com';
 const DATA_NAME='edzesnaplo-adatok.json',FOLDER_NAME='Edzésnapló';
 const DRIVE={on:lsGet('edz.drive.on',false),client:lsGet('edz.drive.client','')||(DEFAULT_CLIENT_ID.startsWith('%%')?'':DEFAULT_CLIENT_ID),
@@ -1194,6 +1194,14 @@ function evMonthly(name){const y=curSeason();const mine=Object.values(S.sessions
   const cap=w=>w.charAt(0).toUpperCase()+w.slice(1);
   const lines=Object.keys(by).map(Number).sort((a,b)=>a-b).map(m=>{const d=by[m];const parts=[];if(d.t)parts.push(`${d.a}/${d.t} edzésnap`);if(d.vt)parts.push(`${d.va}/${d.vt} versenynap`);return `${cap(MONTHS[m-1])}: ${parts.join(', ')}`});
   return ['Havi edzéslátogatás:',...lines,`Összesen: ${aT}/${tT} edzésnap (${tT?Math.round(aT/tT*100):0}%)${vT?`, ${vA}/${vT} versenynap (${Math.round(vA/vT*100)}%)`:''}`].join('\n')}
+/* the sailor's days on the water split by wind strength (strongest wind of the day) */
+function evWind(name){const y=curSeason();
+  const days=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&s.status!=='terv'&&(s.athletes||[]).includes(name)&&!(Number(s.h)===0&&Number(s.m)===0&&s.h!=null));
+  const c={gyenge:{n:0,m:0},'közepes':{n:0,m:0},'erős':{n:0,m:0},none:{n:0,m:0}};days.forEach(s=>{const k=windClass(s)||'none';c[k].n++;c[k].m+=minsOf(s)});
+  const known=c.gyenge.n+c['közepes'].n+c['erős'].n;return {c,known,total:days.length}}
+function evWindText(w){const pc=n=>w.known?Math.round(n/w.known*100):0;const L=[['gyenge','Gyenge szél (0–7 csomó)'],['közepes','Közepes szél (8–14 csomó)'],['erős','Erős szél (15+ csomó)']];
+  const lines=L.map(([k,l])=>`${l}: ${w.c[k].n} nap (${pc(w.c[k].n)}%)${w.c[k].m?`, ${hmLong(w.c[k].m)} vízen`:''}`);
+  if(w.c.none.n)lines.push(`Nincs széladat: ${w.c.none.n} nap`);return ['Szélerősség szerinti megoszlás (vízen töltött napok):',...lines].join('\n')}
 function evAttendFact(st){let t=`A szezonban a csapat ${st.tT+st.tV} napjából (${st.tT} edzés- és ${st.tV} versenynap) ${st.aT+st.aV} napon vett részt (${st.pct}%): ${st.aT} edzésnapon és ${st.aV} versenynapon${st.heats?` (${st.heats} futam)`:''}.`;if(st.races.length)t+=` Versenyek: ${st.races.join(', ')}.`;return t}
 function renderEv(){
   const names=evNames();
@@ -1232,6 +1240,7 @@ function renderEv(){
     if(x.k==='motiv')h+=chips('ev','evmot',list('motivN'),v=>String(v)===String(e.motiv),{num:true,ph:'1-10'});
     if(x.k==='attend')h+=`<div class="row2"><input class="txt" style="max-width:120px" id="ev-attend" data-evf="attend" inputmode="numeric" value="${esc(e.attend)}" aria-label="Edzéslátogatás %"> <span>%</span>
       <button class="chip" data-evattend="1">Naplóból: ${st.pct}%</button><button class="chip" data-evfact="1">Tények beszúrása</button><button class="chip" data-evmonths="1">Havi bontás beszúrása</button></div>`;
+    if(x.k==='phys'){const w=evWind(name);h+=`<div class="ref"><span class="rl">A naplóból – szélerősség szerint</span>${esc(evWindText(w).split('\n').slice(1).join('\n'))}</div>`}
     if(x.k==='summary'&&st.results.length)h+=`<div class="row2"><button class="chip" data-evres="1">Eredmények beszúrása</button></div>`;
     if(x.k==='intl')h+=chips('ev','evintl',list('intl'),v=>v===e.intl,{ph:'pl. RÉSZBEN'});
     if(ref){const rv=x.val?ref[x.val]:'';const rt=ref[x.text]||'';
@@ -1247,7 +1256,7 @@ function buildEvDocx(title,e){
   const rp=o=>`<w:rPr>${F}${o.b?'<w:b/><w:bCs/>':''}${o.i?'<w:i/><w:iCs/>':''}<w:sz w:val="${o.sz||24}"/><w:szCs w:val="${o.sz||24}"/>${o.u?'<w:u w:val="single"/>':''}</w:rPr>`;
   const R=(t,o={})=>`<w:r>${rp(o)}<w:t xml:space="preserve">${xe(t)}</w:t></w:r>`;
   const P=(runs,o={})=>`<w:p><w:pPr><w:spacing w:before="${o.center?0:240}" w:after="240"/><w:jc w:val="${o.center?'center':o.left?'left':'both'}"/>${rp(o.r||{})}</w:pPr>${runs}</w:p>`;
-  const texts=(t,allLeft)=>String(t||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(x.split('\n').map(l=>R(l.trim())).join('<w:r><w:br/></w:r>'),{left:allLeft||/^(Havi edzéslátogatás|A szezon versenyeredményei)/i.test(x)})).join('');
+  const texts=(t,allLeft)=>String(t||'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>P(x.split('\n').map(l=>R(l.trim())).join('<w:r><w:br/></w:r>'),{left:allLeft||/^(Havi edzéslátogatás|A szezon versenyeredményei|Szélerősség szerinti megoszlás)/i.test(x)})).join('');
   const kv=(l,v,unit)=>P(R(l+' ')+(v?R(v+(unit||''),{b:1}):''));
   let b=P(R(title,{b:1,sz:28}),{center:1,r:{b:1,sz:28}})+P('',{center:1});
   b+=P(R('ALAP ADATOK:',{b:1,i:1,u:1}));
@@ -1432,6 +1441,7 @@ document.addEventListener('click',e=>{
   if(ds.evper){S.evPeriod=ds.evper;S.evUI._adding=null;renderEv();return}
   if(ds.evname){S.evName=evNames()[Number(ds.evname)];S.evUI._adding=null;renderEv();window.scrollTo(0,0);return}
   if(ds.evattend){evTouch(curEval()).attend=String(evStats(S.evName).pct);saveCache();renderEv();return}
+  if(ds.evwind){const e=evTouch(curEval());const t=evWindText(evWind(S.evName));e.phys=(e.phys?e.phys.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.evmonths){const e=evTouch(curEval());const t=evMonthly(S.evName);e.attendText=(e.attendText?e.attendText.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.evfact){const e=evTouch(curEval());const t=evAttendFact(evStats(S.evName));e.attendText=(e.attendText?e.attendText.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.evdocx){exportEvDocx();return}
