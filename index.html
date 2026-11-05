@@ -437,7 +437,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=17;
+const APP_VERSION=18;
 const DEFAULT_CLIENT_ID='29057013726-bjqcvqo61n3mk0c932002e4usjfafr1a.apps.googleusercontent.com';
 const DATA_NAME='edzesnaplo-adatok.json',FOLDER_NAME='Edzésnapló';
 const DRIVE={on:lsGet('edz.drive.on',false),client:lsGet('edz.drive.client','')||(DEFAULT_CLIENT_ID.startsWith('%%')?'':DEFAULT_CLIENT_ID),
@@ -920,6 +920,11 @@ function renderSum(){
   const attDays=done.filter(s=>(s.athletes||[]).length);
   const at={};attDays.forEach(s=>(s.athletes||[]).forEach(a=>{at[a]=at[a]||{n:0,m:0};at[a].n++;at[a].m+=minsOf(s)}));
   const arr=Object.entries(at).sort((a,b)=>b[1].n-a[1].n||a[0].localeCompare(b[0],'hu'));
+  {const wd=done.filter(s=>!(Number(s.h)===0&&Number(s.m)===0&&s.h!=null));const W={gyenge:{n:0,m:0},'közepes':{n:0,m:0},'erős':{n:0,m:0},none:{n:0,m:0}};
+   wd.forEach(s=>{const k=windClass(s)||'none';W[k].n++;W[k].m+=minsOf(s)});const known=W.gyenge.n+W['közepes'].n+W['erős'].n;
+   const rows=[['gyenge','Gyenge (0–7 csomó)'],['közepes','Közepes (8–14 csomó)'],['erős','Erős (15+ csomó)']];
+   if(known)h+=`<h3 class="sec-h">Szélerősség</h3><p class="bar-note">A ${known} lezárt nap közül, ahol rögzítetted a szelet${W.none.n?` (${W.none.n} napon nincs széladat)`:''}. A nap legerősebb szele számít.</p><div class="bars">`+rows.map(([k,l])=>
+     `<div class="bar"><span class="nm">${l}</span><span class="tr"><i style="width:${pct(W[k].n,known)}%"></i></span><span class="vv"><b>${pct(W[k].n,known)}%</b> · ${W[k].n} nap · ${hmLong(W[k].m)}</span></div>`).join('')+`</div>`}
   h+=`<h3 class="sec-h">Részvétel versenyzőnként</h3><p class="bar-note">A ${attDays.length} lezárt nap közül, ahol rögzítetted a résztvevőket.</p><div class="bars">`+(arr.length?arr.map(([n,v])=>
     `<div class="bar"><span class="nm">${esc(n)}</span><span class="tr"><i style="width:${pct(v.n,attDays.length)}%"></i></span><span class="vv"><b>${pct(v.n,attDays.length)}%</b> · ${v.n}/${attDays.length} nap · ${hm(v.m)}</span></div>`).join(''):'<p>Nincs rögzített résztvevő.</p>')+`</div>`;
   const trDays=done.filter(s=>!isV(s)&&(s.focus||[]).length);
