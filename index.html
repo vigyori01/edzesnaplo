@@ -207,6 +207,26 @@ html,body{touch-action:manipulation}
 .upd{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));z-index:45;background:var(--ink);color:var(--bg);border-radius:999px;padding:8px 8px 8px 16px;display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .upd .btn{padding:8px 14px;background:var(--buoy);color:#fff}
 .app-ver{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}
+.brief{position:fixed;inset:0;z-index:30;background:var(--surface);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.br-in{max-width:760px;margin:0 auto;padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(24px + env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.br-top{display:flex;align-items:flex-start;gap:12px}.br-top>div{flex:1}
+.br-date{font-family:var(--display);font-weight:700;font-size:26px;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
+.br-place{color:var(--muted);font-size:18px;margin-top:4px}
+.br-x{font-size:20px;min-width:44px;min-height:44px}
+.br-goal{font-size:24px;font-weight:700;line-height:1.3;border-left:5px solid var(--buoy);padding:4px 0 4px 14px}
+.br-h{font-family:var(--display);font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.08em;color:var(--water);margin-top:6px}
+.br-list{margin:0;padding:0;list-style:none;counter-reset:br;display:flex;flex-direction:column}
+.br-list li{counter-increment:br;padding:14px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:8px}
+.br-list li::before{content:counter(br)".";font-family:var(--display);font-weight:700;font-size:28px;color:var(--buoy);line-height:1.1;grid-row:1 / span 2}
+.br-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.br-name{font-size:24px;font-weight:700;line-height:1.25;flex:1;min-width:0}
+.br-min{font-family:var(--display);font-weight:700;font-size:24px;font-variant-numeric:tabular-nums;color:var(--water);white-space:nowrap}
+.br-note{grid-column:2;font-size:18px;color:var(--muted);margin-top:4px;line-height:1.35}
+.br-tot{font-family:var(--display);font-weight:700;font-size:22px;text-align:right}
+.br-text{font-size:19px;line-height:1.4;white-space:pre-wrap}
+.br-ath{font-size:17px;color:var(--muted);line-height:1.4}
+.br-empty{font-size:19px;color:var(--muted)}
+.br-foot{display:flex;gap:8px;margin-top:10px}.br-foot .btn{flex:1;font-size:17px;padding:14px}
 .ni{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 button.sync{background:none;border:0;padding:4px 0;cursor:pointer}
 .pblocks{display:flex;flex-direction:column;gap:8px}
@@ -259,6 +279,7 @@ button.sync{background:none;border:0;padding:4px 0;cursor:pointer}
 <button class="fab" id="fab">+ Új nap</button>
 <div id="sheet"></div>
 <div id="toast" class="toast" hidden></div>
+<div id="brief" class="brief" hidden role="dialog" aria-label="Megbeszélés"></div>
 <div id="upd" class="upd" hidden><span>Új verzió érhető el.</span><button type="button" class="btn" id="upd-btn">Frissítés</button></div>
 
 <script>
@@ -416,7 +437,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=15;
+const APP_VERSION=16;
 const DEFAULT_CLIENT_ID='29057013726-bjqcvqo61n3mk0c932002e4usjfafr1a.apps.googleusercontent.com';
 const DATA_NAME='edzesnaplo-adatok.json',FOLDER_NAME='Edzésnapló';
 const DRIVE={on:lsGet('edz.drive.on',false),client:lsGet('edz.drive.client','')||(DEFAULT_CLIENT_ID.startsWith('%%')?'':DEFAULT_CLIENT_ID),
@@ -469,7 +490,7 @@ async function syncNow(interactive){
 }
 let syncT=null;function scheduleSync(){if(!DRIVE.on)return;clearTimeout(syncT);syncT=setTimeout(()=>syncNow(false),2500)}
 async function driveFileBlob(id){const r=await gapi(`/drive/v3/files/${id}?alt=media`);return await r.blob()}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncNow(false)});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){syncNow(false);if(briefPlan&&navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>{briefWake=l}).catch(()=>{})}});
 document.addEventListener('gesturestart',e=>e.preventDefault());
 window.addEventListener('online',()=>syncNow(false));
 setInterval(()=>{if(document.visibilityState==='visible')syncNow(false)},60000);
@@ -593,7 +614,7 @@ function planCard(s){const p=s.plan||{};const d=pd(s.date);
       ${p.goal?`<div class="c-race" style="color:var(--ink)">${esc(p.goal)}</div>`:''}
       ${(p.blocks||[]).length?`<div class="c-focus">${esc(p.blocks.map(b=>b.name+(b.min?` ${b.min}'`:'')).join(' · '))}</div>`:'<div class="c-focus">Még nincs blokk a tervben.</div>'}
       ${(s.athletes||[]).length?`<div class="c-ath">${s.athletes.length} fő tervezve</div>`:''}
-      <div class="row2" style="margin-top:6px">${s.status==='terv'&&s.date<=todayStr()?`<button class="chip on" data-precord="${esc(s.id)}">Rögzítés a naplóba</button>`:''}<button class="chip" data-pedit="${esc(s.id)}">Terv szerkesztése</button></div></div>
+      <div class="row2" style="margin-top:6px">${s.status==='terv'&&s.date<=todayStr()?`<button class="chip on" data-precord="${esc(s.id)}">Rögzítés a naplóba</button>`:''}<button class="chip" data-pbrief="${esc(s.id)}">Megbeszélés</button><button class="chip" data-pedit="${esc(s.id)}">Terv szerkesztése</button></div></div>
     <div class="c-time">${planMins(p)?hm(planMins(p)):''}${planMins(p)?'<small>terv</small>':''}</div></div>`}
 function renderPlans(){
   const all=Object.entries(S.sessions).map(([id,s])=>({id,...s})).filter(s=>s.status==='terv'||(s.plan&&s.date>=todayStr()));
@@ -614,6 +635,26 @@ function openPlanEditor(id){
     :{id:null,date:todayStr(1),loc:last?.loc||'',group:last?.group||'',type:'Edzés',athletes:(lastPlan?.athletes||last?.athletes||[]).slice(),goal:'',blocks:[],note:'',status:'terv',_adding:null,_confirm:false,_anim:true};
   renderPlanEditor();
 }
+/* ---------- briefing: the plan on one big screen, one exercise per line ---------- */
+let briefWake=null,briefPlan=null;
+function sessionPlan(id){const s=S.sessions[id];if(!s)return null;const pl=s.plan||{};
+  return {date:s.date,loc:s.loc||'',group:s.group||'',type:s.type||'',athletes:(s.athletes||[]).slice(),goal:pl.goal||'',blocks:clone(pl.blocks||[]),note:pl.note||''}}
+function openBriefing(p){briefPlan=p;const el=document.getElementById('brief');const tot=planMins(p);
+  el.innerHTML=`<div class="br-in">
+    <div class="br-top"><div><div class="br-date">${esc(fmtDate(p.date))}</div><div class="br-place">${esc([p.loc,p.group,p.type&&p.type!=='Edzés'?p.type:''].filter(Boolean).join(' · '))}</div></div>
+      <button type="button" class="ico br-x" data-brclose="1" aria-label="Bezárás">✕</button></div>
+    ${p.goal?`<div class="br-goal">${esc(p.goal)}</div>`:''}
+    <div class="br-h">A vízen</div>
+    ${p.blocks.length?`<ol class="br-list">${p.blocks.map(b=>`<li><div class="br-row"><span class="br-name">${esc(String(b.name).charAt(0).toUpperCase()+String(b.name).slice(1))}</span>${Number(b.min)?`<span class="br-min">${Number(b.min)} perc</span>`:''}</div>${b.note?`<div class="br-note">${esc(b.note)}</div>`:''}</li>`).join('')}</ol>`
+      :`<p class="br-empty">Még nincs gyakorlat a tervben.</p>`}
+    ${tot?`<div class="br-tot">Összesen: ${hmLong(tot)}</div>`:''}
+    ${p.note?`<div class="br-h">Megjegyzés</div><div class="br-text">${esc(p.note)}</div>`:''}
+    ${p.athletes.length?`<div class="br-h">Résztvevők (${p.athletes.length})</div><div class="br-ath">${esc(p.athletes.join(', '))}</div>`:''}
+    <div class="br-foot"><button type="button" class="btn sec" data-brcopy="1">Szöveg másolása</button><button type="button" class="btn" data-brclose="1">Bezárás</button></div>
+  </div>`;
+  el.hidden=false;el.scrollTop=0;
+  try{if(navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>{briefWake=l}).catch(()=>{})}catch(e){}}
+function closeBriefing(){const el=document.getElementById('brief');el.hidden=true;el.innerHTML='';briefPlan=null;try{if(briefWake){briefWake.release();briefWake=null}}catch(e){}}
 function planText(p){const d=fmtDate(p.date);let t=`${d} – ${[p.loc,p.group].filter(Boolean).join(', ')}${p.type&&p.type!=='Edzés'?' ('+p.type+')':''}`;
   if(p.goal)t+=`\nCél: ${p.goal}`;if(p.blocks.length)t+='\n'+p.blocks.map((b,i)=>`${i+1}. ${b.name}${b.min?` – ${b.min} perc`:''}${b.note?` (${b.note})`:''}`).join('\n');
   if(planMins(p))t+=`\nÖsszesen: ${hmLong(planMins(p))}`;if(p.note)t+=`\n${p.note}`;if(p.athletes.length)t+=`\nRésztvevők: ${p.athletes.join(', ')}`;return t}
@@ -644,7 +685,7 @@ function renderPlanEditor(){
       <div class="sub">Gyakorlat hozzáadása</div>${chips('pe','peblock',focus,()=>false,{ph:'pl. ketrec'})}</div>
     <div class="fld"><label for="pe-note">Megjegyzés</label><textarea class="txt" id="pe-note" data-pef="note" placeholder="Felszerelés, logisztika, motoros, időpont…">${esc(p.note)}</textarea></div>
     ${prev.length?`<div class="fld"><div class="lbl">Másolás korábbi tervből</div><div class="chips">${prev.map(([id,x])=>`<button type="button" class="chip" data-pecopy="${esc(id)}">${esc(x.date.slice(5).replace('-','.'))}. ${esc((x.plan.goal||x.plan.blocks.map(b=>b.name).join(', ')).slice(0,28))}</button>`).join('')}</div></div>`:''}
-    <div class="fld"><div class="row2"><button type="button" class="btn sec" data-pecopytxt="1">Terv szövegének másolása</button>
+    <div class="fld"><div class="row2"><button type="button" class="btn" data-pebrief="1">Megbeszélés</button><button type="button" class="btn sec" data-pecopytxt="1">Terv szövegének másolása</button>
       ${p.id?(p._confirm?`<span>Biztosan törlöd a tervet?</span><button type="button" class="btn danger" data-pedel="1">Igen, törlés</button><button type="button" class="btn sec" data-pedelx="1">Mégse</button>`:`<button type="button" class="btn sec" data-pedelask="1">Terv törlése</button>`):''}</div>
       <div class="sub">A szöveget beillesztheted a csapat csoportjába.</div></div>
   </div>
@@ -1429,6 +1470,10 @@ document.addEventListener('click',e=>{
   if(ds.pbx){S.pe.blocks.splice(Number(ds.pbx),1);renderPlanEditor();return}
   if(ds.pbmin){const bl=S.pe.blocks[Number(ds.pbmin)];const m=Number(ds.v);bl.min=Number(bl.min)===m?0:m;renderPlanEditor();return}
   if(ds.pecopy){const x=S.sessions[ds.pecopy];if(x&&x.plan){S.pe.goal=x.plan.goal||'';S.pe.blocks=clone(x.plan.blocks||[]);S.pe.note=x.plan.note||''}renderPlanEditor();toast('Terv átmásolva – a dátumot ellenőrizd');return}
+  if(ds.pbrief){const pl=sessionPlan(ds.pbrief);if(pl)openBriefing(pl);return}
+  if(ds.pebrief){openBriefing(clone({date:S.pe.date,loc:S.pe.loc,group:S.pe.group,type:S.pe.type,athletes:S.pe.athletes,goal:S.pe.goal,blocks:S.pe.blocks,note:S.pe.note}));return}
+  if(ds.brclose){closeBriefing();return}
+  if(ds.brcopy){const t=planText(briefPlan);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Terv szövege a vágólapon')).catch(()=>toast('Nem sikerült másolni'));return}
   if(ds.pecopytxt){const t=planText(S.pe);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Terv szövege a vágólapon')).catch(()=>{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Terv szövege a vágólapon')}catch(e){toast('Nem sikerült másolni')}ta.remove()});return}
   if(ds.pedelask){S.pe._confirm=true;renderPlanEditor();return}
   if(ds.pedelx){S.pe._confirm=false;renderPlanEditor();return}
@@ -1457,6 +1502,7 @@ document.addEventListener('click',e=>{
     S.options.hidden[k]=h.includes(v)?h.filter(x=>x!==v):[...h,v];S._open=k;saveOptions();render();return}
 });
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&!document.getElementById('brief').hidden){closeBriefing();return}
   const t=e.target;if(!t.dataset)return;
   if(t.dataset.addin){if(e.key==='Enter'){e.preventDefault();doAdd(t.dataset.ctx,t.dataset.addin)}
     else if(e.key==='Escape'){const o=tgt(t.dataset.ctx);o._adding=null;rer(t.dataset.ctx)}}
