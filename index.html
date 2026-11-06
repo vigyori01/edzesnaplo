@@ -76,6 +76,9 @@ main{padding-block:14px 120px}
 .toolbar .sp{flex:1}
 .month{display:flex;align-items:baseline;justify-content:space-between;margin:22px 2px 8px;font-family:var(--display);text-transform:uppercase;letter-spacing:.06em}
 .month h2{margin:0;font-size:20px;font-weight:700}
+.mhead{width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:8px 2px;cursor:pointer;text-align:left;color:inherit;flex-wrap:wrap;gap:2px 10px;margin-bottom:8px}
+.mhead .chev{display:inline-block;width:1.1em;color:var(--buoy)}
+.mhead .msum{flex-basis:100%;font-family:var(--body);text-transform:none;letter-spacing:0;font-size:13px;padding-left:1.4em}
 .month span{color:var(--muted);font-size:15px;font-weight:600}
 .list{display:flex;flex-direction:column;gap:8px}
 .card{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;text-align:left;width:100%}
@@ -437,7 +440,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=18;
+const APP_VERSION=19;
 const DEFAULT_CLIENT_ID='29057013726-bjqcvqo61n3mk0c932002e4usjfafr1a.apps.googleusercontent.com';
 const DATA_NAME='edzesnaplo-adatok.json',FOLDER_NAME='Edzésnapló';
 const DRIVE={on:lsGet('edz.drive.on',false),client:lsGet('edz.drive.client','')||(DEFAULT_CLIENT_ID.startsWith('%%')?'':DEFAULT_CLIENT_ID),
@@ -698,6 +701,9 @@ function savePlan(){const p=S.pe;const id=p.id||uid();const base=p.id&&S.session
   if(!p.id)d.status='terv';putSession(id,d);S.pe=null;$('#sheet').innerHTML='';render();toast('Terv mentve')}
 
 /* ---------- log ---------- */
+/* collapsible months: remembered per device; current month and months with planned days start open */
+const MOPEN=lsGet('edz.months.open',{});
+function monthOpen(k,arr){if(S.filter!=='all')return true;if(k in MOPEN)return !!MOPEN[k];return k===todayStr().slice(0,7)||arr.some(s=>s.status==='terv')||k===S._fallbackMonth}
 function renderLog(){
   const y=curSeason();const all=seasonSessions(y);
   all.forEach((s,i)=>s.n=i+1);
@@ -721,9 +727,12 @@ function renderLog(){
   if(!rows.length){h+=`<div class="empty">Nincs ilyen bejegyzés.</div>`;$('#main').innerHTML=h;return}
   const today=todayStr();let curM='';const byM={};
   rows.forEach(s=>{const k=s.date.slice(0,7);(byM[k]=byM[k]||[]).push(s)});
+  {const ks=Object.keys(byM);const cur=todayStr().slice(0,7);const anyDefault=ks.some(k=>k===cur||byM[k].some(x=>x.status==='terv'));S._fallbackMonth=anyDefault?null:ks.filter(k=>k<=cur).pop()||ks[ks.length-1]}
   for(const [k,arr] of Object.entries(byM)){
     const mm=arr.filter(s=>s.status!=='terv').reduce((a,s)=>a+minsOf(s),0);
-    h+=`<div class="month"><h2>${MONTHS[Number(k.slice(5))-1]}</h2><span>${arr.length} nap · ${hmLong(mm)} vízen</span></div><div class="list">`;
+    const open=monthOpen(k,arr);const nE=arr.filter(s=>s.status!=='terv'&&!isVer(s)).length,nV=arr.filter(s=>s.status!=='terv'&&isVer(s)).length,nT=arr.filter(s=>s.status==='terv').length;
+    const sum=[nE?`${nE} edzés`:'',nV?`${nV} verseny`:'',nT?`${nT} tervezett`:''].filter(Boolean).join(' · ');
+    h+=`<button type="button" class="month mhead" data-month="${k}" aria-expanded="${open}"><h2><span class="chev" aria-hidden="true">${open?'▾':'▸'}</span>${MONTHS[Number(k.slice(5))-1]}</h2><span>${arr.length} nap · ${hmLong(mm)} vízen</span>${!open&&sum?`<span class="msum">${sum}</span>`:''}</button><div class="list"${open?'':' hidden'}>`;
     for(const s of arr){
       const d=pd(s.date);const terv=s.status==='terv';const ver=(s.type||'').toLowerCase().startsWith('verseny');
       const ath=s.athletes||[];
@@ -829,6 +838,7 @@ function saveForm(){
   if(f.plan)d.plan=clone(f.plan);
   const id=f._id||uid();putSession(id,d);
   const y=seasonOf(d);if(y!==curSeason()){S.season=y;lsSet(LS_SEASON,y)}
+  MOPEN[d.date.slice(0,7)]=true;lsSet('edz.months.open',MOPEN);
   closeForm();render();toast('Mentve');
   setTimeout(()=>{const c=document.getElementById('c-'+id);if(c)c.scrollIntoView({block:'center'})},50);
 }
@@ -1460,6 +1470,7 @@ document.addEventListener('click',e=>{
   if(ds.newseason){const y=Math.max(...allSeasons())+1;S.options.seasons=[...new Set([...(S.options.seasons||[]).map(Number),y])];saveOptions();
     S.season=y;lsSet(LS_SEASON,y);S.plan.from='';S.tab='log';render();toast(`${y} szezon létrehozva – a gombok (versenyzők, helyszínek…) megmaradtak`);return}
   if(ds.filter){S.filter=ds.filter;render();return}
+  if(ds.month){const k=ds.month;const cur=b.getAttribute('aria-expanded')==='true';MOPEN[k]=!cur;lsSet('edz.months.open',MOPEN);const y=window.scrollY;renderLog();window.scrollTo(0,y);return}
   if(ds.export){exportXlsx();return}
   if(ds.backup){exportBackup();return}
   if(ds.restoreok){const f=S._restoreFile;S._restoreAsk=false;S._restoreFile=null;if(f)importBackup(Array.isArray(f)?f:[f]);renderSet();return}
