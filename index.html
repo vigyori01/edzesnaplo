@@ -452,7 +452,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=20;
+const APP_VERSION=21;
 /* display settings for large monitors: stored per device */
 const DISP=Object.assign({w:'normal',fs:100},lsGet('edz.display',{}));
 function applyDisplay(){const r=document.documentElement;r.dataset.width=DISP.w;r.style.setProperty('--fs',DISP.fs/100);document.body.style.zoom=DISP.fs===100?'':String(DISP.fs/100)}
@@ -1010,7 +1010,6 @@ function overviewFacts(st){
 function sailorStats(days,name){const d=days.filter(s=>(s.athletes||[]).includes(name));const e=d.filter(s=>!isVer(s)).length;
   return {name,n:d.length,e,v:d.length-e,mins:d.reduce((a,s)=>a+minsOf(s),0),races:raceList(d)}}
 function sailorFacts(st,total){if(!st.n)return ['Ebben a hónapban nem vett részt a csapat edzésein és versenyein.'];const f=[`Ebben a hónapban ${dayTxt(st.e,st.v,true)} (${hmLong(st.mins)} vízen, a csapatnapok ${total?Math.round(st.n/total*100):0}%-án).`];
-  const r=raceTxt(st.races);if(r.length)f.push(`Versenyek: ${r.join(', ')}.`);
   for(const reg of Object.keys(st.races)){if(!reg)continue;const R=getRes(curSeason(),reg);const e=R&&R.entries[st.name];if(e&&e.rank)f.push(resSentence(reg,e))}
   return f}
 function repMonths(g){const set=new Set();Object.values(S.sessions).forEach(s=>{if(s.status!=='terv'&&(s.athletes||[]).length&&(!g||s.group===g)&&seasonOf(s)===curSeason())set.add(s.date.slice(0,7))});
