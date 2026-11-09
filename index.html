@@ -230,6 +230,18 @@ html,body{touch-action:manipulation}
 .br-ath{font-size:17px;color:var(--muted);line-height:1.4}
 .br-empty{font-size:19px;color:var(--muted)}
 .br-foot{display:flex;gap:8px;margin-top:10px}.br-foot .btn{flex:1;font-size:17px;padding:14px}
+@media (min-width:1100px){
+  :root[data-width="wide"] .wrap{max-width:1360px}
+  :root[data-width="full"] .wrap{max-width:none;padding-left:max(32px,env(safe-area-inset-left,0px));padding-right:max(32px,env(safe-area-inset-right,0px))}
+  :root[data-width="wide"] .sheet-in,:root[data-width="full"] .sheet-in{max-width:1040px}
+  :root:not([data-width="normal"]) .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:10px;align-items:start}
+  :root:not([data-width="normal"]) .rep-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(520px,1fr));gap:10px;align-items:start}
+  :root:not([data-width="normal"]) .evsecs{display:grid;grid-template-columns:repeat(auto-fill,minmax(560px,1fr));gap:10px;align-items:start}
+  :root:not([data-width="normal"]) .evsecs .ev-sec{margin-top:0!important}
+  :root:not([data-width="normal"]) .tiles{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  :root:not([data-width="normal"]) .dob-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:6px 24px}
+  :root:not([data-width="normal"]) .br-in{max-width:1100px}
+}
 .ni{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 button.sync{background:none;border:0;padding:4px 0;cursor:pointer}
 .pblocks{display:flex;flex-direction:column;gap:8px}
@@ -440,7 +452,10 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=19;
+const APP_VERSION=20;
+/* display settings for large monitors: stored per device */
+const DISP=Object.assign({w:'normal',fs:100},lsGet('edz.display',{}));
+function applyDisplay(){const r=document.documentElement;r.dataset.width=DISP.w;r.style.setProperty('--fs',DISP.fs/100);document.body.style.zoom=DISP.fs===100?'':String(DISP.fs/100)}
 const DEFAULT_CLIENT_ID='29057013726-bjqcvqo61n3mk0c932002e4usjfafr1a.apps.googleusercontent.com';
 const DATA_NAME='edzesnaplo-adatok.json',FOLDER_NAME='Edzésnapló';
 const DRIVE={on:lsGet('edz.drive.on',false),client:lsGet('edz.drive.client','')||(DEFAULT_CLIENT_ID.startsWith('%%')?'':DEFAULT_CLIENT_ID),
@@ -1250,6 +1265,7 @@ function renderEv(){
       return `<div class="sub">${t}</div>`})()}
     <div class="sub">Hajóosztály</div>${chips('ev','evcls',list('classes'),v=>v===e.cls,{ph:'pl. ILCA 7'})}
     ${ref?`<div class="ref"><span class="rl">Tavasszal</span>${esc([ref.age&&ref.age+' éves',ref.cls,ref.weight&&ref.weight+' kg',ref.height&&ref.height+' cm'].filter(Boolean).join(' · '))}</div>`:''}</div>`;
+  h+='<div class="evsecs">';
   for(const x of EV_SECTIONS){
     h+=`<div class="sailor ev-sec" style="margin-top:10px"><h4>${esc(x.label.replace(/\s*:\s*$/,''))}</h4>`;
     if(x.k==='motiv')h+=chips('ev','evmot',list('motivN'),v=>String(v)===String(e.motiv),{num:true,ph:'1-10'});
@@ -1263,6 +1279,7 @@ function renderEv(){
     if(x.sub)h+=`<div class="sub">${x.sub}</div>`;
     h+=`<textarea class="txt rep" id="ev-${x.text}" data-evf="${x.text}" placeholder="${x.optText?'Szöveges értékelés (nem kötelező)':'Szöveges értékelés'}">${esc(e[x.text]||'')}</textarea></div>`;
   }
+  h+='</div>';
   h+=`<div class="rep-foot"><button class="btn" data-evdocx="1">Kiértékelés letöltése (.docx)</button><span class="sub" style="text-align:center">Versenyző ${T.toLowerCase()} kiértékelés · ${esc(name)} · Word-fájl, az eredeti formátumban</span></div>`;
   $('#main').innerHTML=h;document.querySelectorAll('textarea.rep').forEach(autoGrow);
 }
@@ -1302,7 +1319,13 @@ function renderSet(){
   const y=curSeason();const p=S.plan;
   if(!p.from){p.from=y+'-04-01';p.to=y+'-10-31'}
   const u=usage();
-  let h=`<div class="panel"><h3 class="sec-h" style="margin:0">Google Drive szinkron</h3>
+  let h=`<div class="panel"><h3 class="sec-h" style="margin:0">Megjelenés ezen az eszközön</h3>
+    <p>Nagy monitoron (pl. 16:9, 1440p vagy 4K) az alkalmazás kitöltheti a képernyőt: a kártyák, tervek, beszámoló és kiértékelés részei több oszlopba rendeződnek. Telefonon nincs hatása.</p>
+    <div class="sub">Szélesség</div>
+    <div class="chips">${[['normal','Normál (keskeny)'],['wide','Széles'],['full','Teljes képernyő']].map(([v,l])=>`<button type="button" class="chip ${DISP.w===v?'on':''}" data-dispw="${v}">${l}</button>`).join('')}</div>
+    <div class="sub">Betűméret</div>
+    <div class="chips">${[100,110,125,150].map(v=>`<button type="button" class="chip ${DISP.fs===v?'on':''}" data-dispfs="${v}">${v}%</button>`).join('')}</div></div>
+  <div class="panel" style="margin-top:12px"><h3 class="sec-h" style="margin:0">Google Drive szinkron</h3>
     <p>Az adatok a Google Drive-od „${FOLDER_NAME}” mappájába mentődnek (${DATA_NAME}), és a telefonod meg a géped automatikusan összehangolódik. Offline is működik, a szinkron utána megtörténik.</p>
     <label class="sub" for="drv-client">Google kliens azonosító (OAuth Client ID)</label>
     <input class="txt" id="drv-client" value="${esc(DRIVE.client)}" placeholder="…apps.googleusercontent.com" autocomplete="off">
@@ -1505,6 +1528,8 @@ document.addEventListener('click',e=>{
   if(ds.pedelx){S.pe._confirm=false;renderPlanEditor();return}
   if(ds.pedel){const id=S.pe.id;const s0=S.sessions[id];if(s0&&s0.status==='terv')delSession(id);else if(s0){const c=clone(s0);delete c.plan;putSession(id,c)}S.pe=null;$('#sheet').innerHTML='';render();toast('Terv törölve');return}
   if(b.id==='upd-btn'){location.reload();return}
+  if(ds.dispw){DISP.w=ds.dispw;lsSet('edz.display',DISP);applyDisplay();render();return}
+  if(ds.dispfs){DISP.fs=Number(ds.dispfs);lsSet('edz.display',DISP);applyDisplay();render();return}
   if(b.id==='sync'){if(!DRIVE.on){S.tab='set';render();window.scrollTo(0,0)}else syncNow(true);return}
   if(ds.drvon){const v=($('#drv-client')||{}).value||'';DRIVE.client=v.trim();lsSet('edz.drive.client',DRIVE.client);if(!DRIVE.client){toast('Előbb add meg a Google kliens azonosítót');return}
     DRIVE.on=true;lsSet('edz.drive.on',true);syncNow(true).then(()=>render());return}
@@ -1569,6 +1594,7 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.lst&&d.open)S._open=d.dataset.lst},true);
 
+applyDisplay();
 render();
 connect();
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
