@@ -242,6 +242,8 @@ html,body{touch-action:manipulation}
   :root:not([data-width="normal"]) .dob-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:6px 24px}
   :root:not([data-width="normal"]) .br-in{max-width:1100px}
 }
+.stale{font-size:13px;color:var(--warn);font-weight:600}
+.chip.warn{border-color:var(--warn);color:var(--warn);font-weight:700}
 .ni{display:none;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 button.sync{background:none;border:0;padding:4px 0;cursor:pointer}
 .pblocks{display:flex;flex-direction:column;gap:8px}
@@ -368,9 +370,9 @@ function recT(r){return r?Math.max(Number(r._u)||0,Number(r.updated)||0):0}
 const FCOLS={reports:1,evals:1};const HASHF={};
 const isEmptyV=v=>v==null||v===''||(Array.isArray(v)&&!v.length)||(typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length);
 function fieldsOf(c,r){const o={};if(!r)return o;
-  if(c==='reports'){o.overview=r.overview||'';o.skip=r.skip||[];o.extra=r.extra||[];for(const [n,t] of Object.entries(r.notes||{}))o['n:'+n]=t||''}
+  if(c==='reports'){o.overview=r.overview||'';o.skip=r.skip||[];o.extra=r.extra||[];for(const [k,v] of Object.entries(r.ins||{}))o['i:'+k]=v||'';for(const [n,t] of Object.entries(r.notes||{}))o['n:'+n]=t||''}
   else for(const [k,v] of Object.entries(r))if(k[0]!=='_')o[k]=v;return o}
-function setField(c,r,f,v){if(c==='reports'){if(f.startsWith('n:')){r.notes=r.notes||{};r.notes[f.slice(2)]=v}else r[f]=v}else r[f]=v}
+function setField(c,r,f,v){if(c==='reports'){if(f.startsWith('i:')){r.ins=r.ins||{};r.ins[f.slice(2)]=v}else if(f.startsWith('n:')){r.notes=r.notes||{};r.notes[f.slice(2)]=v}else r[f]=v}else r[f]=v}
 function stampFields(c,k,r,bump,now){r._f=r._f||{};let any=false;
   for(const [f,v] of Object.entries(fieldsOf(c,r))){const hk=c+'/'+k+'/'+f,h=JSON.stringify(v);
     if(bump&&LOADED&&(HASHF[hk]===undefined?!isEmptyV(v):HASHF[hk]!==h)){r._f[f]=now;any=true}HASHF[hk]=h}
@@ -452,7 +454,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=22;
+const APP_VERSION=23;
 /* display settings for large monitors: stored per device */
 const DISP=Object.assign({w:'normal',fs:100},lsGet('edz.display',{}));
 function applyDisplay(){const r=document.documentElement;r.dataset.width=DISP.w;r.style.setProperty('--fs',DISP.fs/100);document.body.style.zoom=DISP.fs===100?'':String(DISP.fs/100)}
@@ -1095,7 +1097,7 @@ function renderRep(){
     <p>A számok a naplóból jönnek: a hónap lezárt napjai, ahol rögzítetted a résztvevőket. A szöveget te írod, a gép csak a tényeket adja hozzá.</p></div>
   <h3 class="sec-h">Áttekintés</h3>
   <div class="sailor"><ul class="facts">${overviewFacts(st).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>
-    <div class="row2"><button class="chip" data-repfact="ov">Tények beszúrása a szövegbe</button></div>
+    <div class="row2"><button class="chip" data-repfact="ov">Tények beszúrása a szövegbe</button>${repStale('ov',r,days)?'<span class="stale">A beszúrt adatok változtak a naplóban.</span><button class="chip warn" data-reprefresh="ov">Frissítés</button>':''}</div>
     <textarea class="txt rep" id="rep-ov" data-repov="1" placeholder="Hogyan telt a hónap? (Üres sor = új bekezdés a Wordben)">${esc(r.overview||'')}</textarea>
     ${pr&&pr.overview?`<details><summary>Előző havi áttekintés</summary><p>${esc(pr.overview)}</p></details>`:''}</div>
   <h3 class="sec-h">Versenyzők</h3><div class="rep-list">`;
@@ -1103,6 +1105,7 @@ function renderRep(){
     h+=`<div class="sailor"><h4>${esc(n)} <span class="d">– ${ss.n} nap</span><span class="ok rk" id="rk-${i}"${filledTxt(r.notes[n])?'':' hidden'}>✓</span></h4>
       <div class="meta">${esc(sailorFacts(ss,days.length).join(' '))}</div>
       <textarea class="txt rep" id="rep-n${i}" data-repn="${i}" placeholder="Értékelés: ${esc(n.split(' ').pop())}">${esc(r.notes[n]||'')}</textarea>
+      ${repStale(String(i),r,days)?`<div class="row2"><span class="stale">A beszúrt adatok változtak a naplóban.</span><button class="chip warn" data-reprefresh="${i}">Frissítés</button></div>`:''}
       <div class="row2"><button class="chip" data-repfact="${i}">Tények beszúrása</button><button class="chip ghost" data-repskip="${i}">Kihagyás a beszámolóból</button></div>
       ${prev?`<details><summary>Előző havi szöveg</summary><p>${esc(prev)}</p></details>`:''}</div>`});
   h+='</div>';
@@ -1115,12 +1118,24 @@ function renderRep(){
 }
 function autoGrow(t){t.style.height='auto';t.style.height=Math.max(110,t.scrollHeight+2)+'px'}
 let repSaveT=null;function repSaveSoon(){clearTimeout(repSaveT);repSaveT=setTimeout(saveCache,400)}
+function repFactsNow(which,days){if(which==='ov')return overviewFacts(repStats(days)).join(' ');const n=S._repOrder[Number(which)];return sailorFacts(sailorStats(days,n),days.length).join(' ')}
 function repInsertFacts(which){
-  const g=S.repGroup,ym=S.repMonth,days=repDays(g,ym),r=getRep(g,ym);
-  if(which==='ov'){const t=overviewFacts(repStats(days)).join(' ');r.overview=(r.overview?r.overview.trimEnd()+'\n\n':'')+t}
-  else{const n=S._repOrder[Number(which)];const t=sailorFacts(sailorStats(days,n),days.length).join(' ');r.notes[n]=(r.notes[n]?r.notes[n].trimEnd()+'\n\n':'')+t}
+  const g=S.repGroup,ym=S.repMonth,days=repDays(g,ym),r=getRep(g,ym);r.ins=r.ins||{};const t=repFactsNow(which,days);
+  if(which==='ov'){r.overview=(r.overview?r.overview.trimEnd()+'\n\n':'')+t;r.ins.ov=t}
+  else{const n=S._repOrder[Number(which)];r.notes[n]=(r.notes[n]?r.notes[n].trimEnd()+'\n\n':'')+t;r.ins['n:'+n]=t}
   saveCache();renderRep();
 }
+/* facts inserted earlier that no longer match the training log */
+const ATT_RE=/Ebben a hónapban [^.]*?(?:vett részt|nem vett részt[^.]*)(?: \([^)]*\))?\./;
+function repStale(which,r,days){const now=repFactsNow(which,days);
+  if(which==='ov'){const old=(r.ins||{}).ov;return old&&old!==now&&(r.overview||'').includes(old)?{old,now}:null}
+  const n=S._repOrder[Number(which)];const txt=(r.notes||{})[n]||'';const old=(r.ins||{})['n:'+n];
+  if(old&&txt.includes(old))return old!==now?{old,now}:null;
+  const m=txt.match(ATT_RE);if(m){const cur=now.match(ATT_RE);if(cur&&cur[0]!==m[0])return {old:m[0],now:cur[0]}}return null}
+function repRefresh(which){const g=S.repGroup,ym=S.repMonth,days=repDays(g,ym),r=getRep(g,ym);const st=repStale(which,r,days);if(!st)return;r.ins=r.ins||{};
+  if(which==='ov'){r.overview=r.overview.replace(st.old,st.now);r.ins.ov=st.now}
+  else{const n=S._repOrder[Number(which)];r.notes[n]=r.notes[n].replace(st.old,st.now);if(r.ins['n:'+n]===st.old)r.ins['n:'+n]=st.now}
+  saveCache();renderRep();toast('A beszúrt adatok frissítve')}
 /* .docx writer — same look as the original reports: Calibri 11, bold+underlined headings, 16pt title, A4 */
 function buildDocx(title,count,overview,sailors){
   const F='<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>';
@@ -1468,7 +1483,8 @@ async function importBackup(files){
 /* ---------- events ---------- */
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const ds=b.dataset;
-  if(ds.tab){S.tab=ds.tab;render();window.scrollTo(0,0);return}
+  if(ds.tab){S.tab=ds.tab;render();window.scrollTo(0,0);if((ds.tab==='rep'||ds.tab==='ev')&&DRIVE.on&&navigator.onLine)syncNow(true);return}
+  if(ds.reprefresh){repRefresh(ds.reprefresh);return}
   if(ds.repm){S.repMonth=ds.repm;S.repUI._adding=null;renderRep();window.scrollTo(0,0);return}
   if(ds.repg){S.repGroup=ds.repg;S.repMonth=null;renderRep();return}
   if(ds.repfact){repInsertFacts(ds.repfact);return}
