@@ -454,7 +454,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=23;
+const APP_VERSION=24;
 /* display settings for large monitors: stored per device */
 const DISP=Object.assign({w:'normal',fs:100},lsGet('edz.display',{}));
 function applyDisplay(){const r=document.documentElement;r.dataset.width=DISP.w;r.style.setProperty('--fs',DISP.fs/100);document.body.style.zoom=DISP.fs===100?'':String(DISP.fs/100)}
@@ -1128,12 +1128,16 @@ function repInsertFacts(which){
 /* facts inserted earlier that no longer match the training log */
 const ATT_RE=/Ebben a hónapban [^.]*?(?:vett részt|nem vett részt[^.]*)(?: \([^)]*\))?\./;
 function repStale(which,r,days){const now=repFactsNow(which,days);
-  if(which==='ov'){const old=(r.ins||{}).ov;return old&&old!==now&&(r.overview||'').includes(old)?{old,now}:null}
+  if(which==='ov'){const old=(r.ins||{}).ov;const txt=r.overview||'';if(old&&txt.includes(old))return old!==now?{old,now}:null;
+    /* older inserts: find each known fact sentence in the text and compare it with today's version */
+    const pairs=[];for(const f of overviewFacts(repStats(days))){const key=f.startsWith('Ebben a hónapban')?'Ebben a hónapban':f.slice(0,f.indexOf(':')+1);if(!key)continue;
+      const esc_=key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');const m=txt.match(new RegExp(esc_+'[^\\n]*?\\.(?=\\s+[A-ZÁÉÍÓÖŐÚÜŰ]|\\s*$|\\n)'));if(m&&m[0]!==f)pairs.push([m[0],f])}
+    return pairs.length?{pairs}:null}
   const n=S._repOrder[Number(which)];const txt=(r.notes||{})[n]||'';const old=(r.ins||{})['n:'+n];
   if(old&&txt.includes(old))return old!==now?{old,now}:null;
   const m=txt.match(ATT_RE);if(m){const cur=now.match(ATT_RE);if(cur&&cur[0]!==m[0])return {old:m[0],now:cur[0]}}return null}
 function repRefresh(which){const g=S.repGroup,ym=S.repMonth,days=repDays(g,ym),r=getRep(g,ym);const st=repStale(which,r,days);if(!st)return;r.ins=r.ins||{};
-  if(which==='ov'){r.overview=r.overview.replace(st.old,st.now);r.ins.ov=st.now}
+  if(which==='ov'){if(st.pairs){for(const [o,n] of st.pairs)r.overview=r.overview.replace(o,n)}else{r.overview=r.overview.replace(st.old,st.now);r.ins.ov=st.now}}
   else{const n=S._repOrder[Number(which)];r.notes[n]=r.notes[n].replace(st.old,st.now);if(r.ins['n:'+n]===st.old)r.ins['n:'+n]=st.now}
   saveCache();renderRep();toast('A beszúrt adatok frissítve')}
 /* .docx writer — same look as the original reports: Calibri 11, bold+underlined headings, 16pt title, A4 */
