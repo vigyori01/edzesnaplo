@@ -452,7 +452,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=21;
+const APP_VERSION=22;
 /* display settings for large monitors: stored per device */
 const DISP=Object.assign({w:'normal',fs:100},lsGet('edz.display',{}));
 function applyDisplay(){const r=document.documentElement;r.dataset.width=DISP.w;r.style.setProperty('--fs',DISP.fs/100);document.body.style.zoom=DISP.fs===100?'':String(DISP.fs/100)}
@@ -1021,7 +1021,9 @@ function sailorOrder(g,ym,days){
   Object.keys(r.notes).forEach(n=>{if(inData.has(n)||r.extra.includes(n)||(r.notes[n]||'').trim())add(n)});
   if(pr)Object.keys(pr.notes||{}).forEach(n=>{if(inData.has(n))add(n)});
   list('athletes').forEach(n=>{if(inData.has(n))add(n)});inData.forEach(add);r.extra.forEach(add);
-  return order;
+  /* most days sailed first; ties keep the previous order */
+  const cnt={};days.forEach(d=>(d.athletes||[]).forEach(a=>{cnt[a]=(cnt[a]||0)+1}));
+  return order.map((n,i)=>[n,i]).sort((a,b)=>(cnt[b[0]]||0)-(cnt[a[0]]||0)||a[1]-b[1]).map(x=>x[0]);
 }
 /* read word/document.xml out of a .docx (stored or deflated zip) */
 async function docxParagraphs(file){
