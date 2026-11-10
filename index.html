@@ -203,6 +203,8 @@ html,body{touch-action:manipulation}
 .prog.full i{background:var(--ok)}
 .pc{font-weight:700;font-variant-numeric:tabular-nums}.pc.lo{color:var(--buoy)}.pc.mid{color:var(--water)}
 .chip.on .pc{color:inherit}
+.chip.pbar{background:linear-gradient(90deg,var(--water-soft) var(--p),var(--surface) var(--p))}
+.chip.pbar.on{background:linear-gradient(90deg,var(--water) var(--p),color-mix(in srgb,var(--water) 55%,var(--surface)) var(--p));border-color:var(--water)}
 .chip.done{border-color:var(--ok);color:var(--ok);font-weight:600}
 .chip.done.on{background:var(--ok);border-color:var(--ok);color:var(--on-water)}
 .chip.done .ok,.chip.done.on .ok{color:inherit}
@@ -454,7 +456,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=24;
+const APP_VERSION=25;
 /* display settings for large monitors: stored per device */
 const DISP=Object.assign({w:'normal',fs:100},lsGet('edz.display',{}));
 function applyDisplay(){const r=document.documentElement;r.dataset.width=DISP.w;r.style.setProperty('--fs',DISP.fs/100);document.body.style.zoom=DISP.fs===100?'':String(DISP.fs/100)}
@@ -1229,7 +1231,7 @@ function repReadyFor(g,ym){const r=S.reports[repKey(g,ym)]||{};const days=repDay
   const sailors=[...new Set(days.flatMap(d=>d.athletes||[]))].filter(n=>!skip.includes(n));
   const parts=1+sailors.length;const done=(filledTxt(r.overview)?1:0)+sailors.filter(n=>filledTxt((r.notes||{})[n])).length;return parts?done/parts:0}
 function evChips(per,names,sel){return names.map((n,i)=>{const added=evAdded(per,n);const fr=added?evReady(S.evals[evKey(per,n)]):0;
-  return `<button class="chip ${n===sel?'on':''} ${added&&fr>=1?'done':''}" data-evname="${i}">${esc(n)}${added?readyBadge(fr):''}</button>`}).join('')}
+  const bar=added&&fr<1;return `<button class="chip ${n===sel?'on':''} ${added&&fr>=1?'done':''} ${bar?'pbar':''}" ${bar?`style="--p:${(fr*100).toFixed(1)}%"`:''} data-evname="${i}">${esc(n)}${added?readyBadge(fr):''}</button>`}).join('')}
 function evSummary(per,names){const a=names.filter(n=>evAdded(per,n));if(!a.length)return `${EV_PERIODS[per]} kiértékelések: még egyik sincs elkezdve.`;
   const frs=a.map(n=>evReady(S.evals[evKey(per,n)]));return `${EV_PERIODS[per]} kiértékelések: ${frs.filter(f=>f>=1).length}/${a.length} kész · átlag ${Math.floor(frs.reduce((x,y)=>x+y,0)/a.length*100)}%`}
 function evLiveReady(){if(S.tab!=='ev'||!S.evName)return;const names=evNames();setProg('ev-prog',evReady(curEval()));
