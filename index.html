@@ -456,7 +456,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=25;
+const APP_VERSION=26;
 /* display settings for large monitors: stored per device */
 const DISP=Object.assign({w:'normal',fs:100},lsGet('edz.display',{}));
 function applyDisplay(){const r=document.documentElement;r.dataset.width=DISP.w;r.style.setProperty('--fs',DISP.fs/100);document.body.style.zoom=DISP.fs===100?'':String(DISP.fs/100)}
@@ -1302,7 +1302,7 @@ function renderEv(){
     h+=`<textarea class="txt rep" id="ev-${x.text}" data-evf="${x.text}" placeholder="${x.optText?'Szöveges értékelés (nem kötelező)':'Szöveges értékelés'}">${esc(e[x.text]||'')}</textarea></div>`;
   }
   h+='</div>';
-  h+=`<div class="rep-foot"><button class="btn" data-evdocx="1">Kiértékelés letöltése (.docx)</button><span class="sub" style="text-align:center">Versenyző ${T.toLowerCase()} kiértékelés · ${esc(name)} · Word-fájl, az eredeti formátumban</span></div>`;
+  h+=`<div class="rep-foot"><button class="btn" data-evdocx="1">Kiértékelés letöltése (.docx)</button><span class="sub" style="text-align:center">Versenyző ${T.toLowerCase()} kiértékelés · ${esc(name)} · Word-fájl, az eredeti formátumban</span>${(()=>{const k=evReadyNames(per).length;return `<button class="btn sec" data-evall="1" ${k?'':'disabled'}>Összes kész kiértékelés letöltése (${k} db, .zip)</button>`})()}</div>`;
   $('#main').innerHTML=h;document.querySelectorAll('textarea.rep').forEach(autoGrow);
 }
 function buildEvDocx(title,e){
@@ -1328,6 +1328,17 @@ function buildEvDocx(title,e){
     ['word/_rels/document.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
     ['word/document.xml',doc],['word/styles.xml',styles]])],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
 }
+function evFileName(T,name,ext){return (`VERSENYZOI_${T}_KIERTEKELES_${name}`).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_')+ext}
+/* every complete evaluation of the selected period, one Word file each, packed in one zip */
+function evReadyNames(per){return evNames().filter(n=>evAdded(per,n)&&evReady(S.evals[evKey(per,n)])>=1)}
+async function exportAllEv(){
+  const per=S.evPeriod,T=per==='oszi'?'ŐSZI':'TAVASZI',title=`VERSENYZŐ ${T} KIÉRTÉKELÉS`;const names=evReadyNames(per);
+  if(!names.length){toast('Még nincs kész kiértékelés ebben az időszakban');return}
+  try{const files=[];
+    for(const n of names){const e=clone(S.evals[evKey(per,n)]);if(!e.ageManual&&e.started){const a=ageAt(dobOf(n),e.started);if(a!=null)e.age=String(a)}
+      files.push([evFileName(T,n,'.docx'),new Uint8Array(await buildEvDocx(title,e).arrayBuffer())])}
+    saveFile(evFileName(T,'OSSZES_'+curSeason(),'.zip').replace('KIERTEKELES_OSSZES','KIERTEKELESEK'),new Blob([zip(files)],{type:'application/zip'}));
+    toast(`${names.length} kiértékelés letöltve (.zip)`)}catch(err){toast('A letöltés nem sikerült')}}
 function exportEvDocx(){
   const e=curEval();const T=S.evPeriod==='oszi'?'ŐSZI':'TAVASZI';const title=`VERSENYZŐ ${T} KIÉRTÉKELÉS`;
   const fn=(`VERSENYZOI_${T}_KIERTEKELES_${S.evName}`).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'_')+'.docx';
@@ -1421,7 +1432,7 @@ function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255
 function zip(files){
   const enc=new TextEncoder();const parts=[];const cen=[];let off=0;
   for(const [name,text] of files){
-    const nb=enc.encode(name),db=enc.encode(text),crc=crc32(db);
+    const nb=enc.encode(name),db=text instanceof Uint8Array?text:enc.encode(text),crc=crc32(db);
     const h=new DataView(new ArrayBuffer(30));
     h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
     h.setUint16(10,0,true);h.setUint16(12,0x21,true);h.setUint32(14,crc,true);h.setUint32(18,db.length,true);h.setUint32(22,db.length,true);
@@ -1506,6 +1517,7 @@ document.addEventListener('click',e=>{
   if(ds.evmonths){const e=evTouch(curEval());const t=evMonthly(S.evName);e.attendText=(e.attendText?e.attendText.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.evfact){const e=evTouch(curEval());const t=evAttendFact(evStats(S.evName));e.attendText=(e.attendText?e.attendText.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
   if(ds.evdocx){exportEvDocx();return}
+  if(ds.evall){exportAllEv();return}
   if(ds.evagereset){const e=curEval();e.ageManual=false;if(!e.started)e.started=todayStr();const a=ageAt(dobOf(S.evName),e.started);if(a!=null)e.age=String(a);saveCache();renderEv();return}
   if(ds.evres){const e=evTouch(curEval());const rs=evStats(S.evName).results;const t='A szezon versenyeredményei:\n'+rs.map(r=>`${r.reg} ${r.rank}${r.fleet?'/'+r.fleet:'.'}${r.cat?` (${r.cat})`:''}`).join(',\n')+'.';
     e.summary=(e.summary?e.summary.trimEnd()+'\n\n':'')+t;saveCache();renderEv();return}
