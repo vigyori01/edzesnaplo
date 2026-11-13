@@ -208,6 +208,14 @@ html,body{touch-action:manipulation}
 .evc{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px 28px}
 .evc-left{flex:1 1 320px}
 .evc-right{flex:0 1 auto;justify-content:flex-end;margin-left:auto}
+.races{display:flex;flex-direction:column;gap:6px}
+.race-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 12px;min-height:44px}
+.race-row b{flex:none;font-family:var(--display);font-size:16px;text-transform:uppercase;letter-spacing:.04em}
+.race-row span{flex:1;min-width:0;font-variant-numeric:tabular-nums}
+.race-row .inh{color:var(--muted)}.race-row .inh i{font-style:normal;font-size:12px;border:1px dashed var(--muted);border-radius:4px;padding:0 4px;margin-left:4px}
+.race-row .chev{flex:none;color:var(--buoy)}
+.race-row.on{border-color:var(--water)}
+.race-edit{border:1px solid var(--water);border-top:0;border-radius:0 0 var(--r) var(--r);padding:10px 12px;margin-top:-8px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
 .chip.done{border-color:var(--ok);color:var(--ok);font-weight:600}
 .chip.done.on{background:var(--ok);border-color:var(--ok);color:var(--on-water)}
 .chip.done .ok,.chip.done.on .ok{color:inherit}
@@ -312,7 +320,7 @@ const DEF={locations:[],groups:['ILCA'],types:['Edzés','Verseny'],races:[],athl
   dirs:['É','ÉK','K','DK','D','DNY','NY','ÉNY'],hours:[0,1,2,3,4,5,6,7,8],mins:[0,15,30,45],heatsN:[0,1,2,3,4,5,6,7,8],classes:['ILCA 4','ILCA 6','ILCA 7'],intl:['IGEN','EGYENLŐRE NEM','NEM'],waveH:['lapos','20–50 cm','50 cm–1 m','1–2 m','2 m+'],waveT:['lapos','rövid','hosszú','kevert'],motivN:[1,2,3,4,5,6,7,8,9,10],hidden:{},seasons:[]};
 const LISTKEY={loc:'locations',group:'groups',type:'types',race:'races',ath:'athletes',focus:'focus',
   w1kts:'kts',w2kts:'kts',w1dir:'dirs',w2dir:'dirs',h:'hours',m:'mins',
-  ploc:'locations',pgroup:'groups',ptype:'types',heats:'heatsN',evcls:'classes',evintl:'intl',evmot:'motivN',repath:'athletes',wh:'waveH',wt:'waveT',peloc:'locations',pegroup:'groups',petype:'types',peath:'athletes',peblock:'focus'};
+  ploc:'locations',pgroup:'groups',ptype:'types',heats:'heatsN',evcls:'classes',evintl:'intl',evmot:'motivN',repath:'athletes',wh:'waveH',wt:'waveT',rkts:'kts',rdir:'dirs',rwh:'waveH',rwt:'waveT',peloc:'locations',pegroup:'groups',petype:'types',peath:'athletes',peblock:'focus'};
 const NUMLISTS=['kts','hours','mins','heatsN','motivN'];
 const MONTHS=['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
 const WD=['V','H','K','Sze','Cs','P','Szo'];
@@ -356,6 +364,18 @@ function wStr(w){if(!wHas(w))return '';const p=[];
   if(w.dir)p.push(w.dir); if(w.extra&&w.extra.trim())p.push(w.extra.trim()); return p.join(' ')}
 function windFull(s){const a=wStr(s.w1),b=wStr(s.w2);return a&&b?a+' → '+b:(a||b)}
 const WAVE_FROM=2027;
+/* ---------- per-race wind & waves (regatta days from 2027) ---------- */
+const RACE_FROM=2027;
+function blankRace(){return {min:null,max:null,dir:'',extra:'',wh:'',wt:'',set:false}}
+function raceHas(r){return !!r&&(r.min!=null||!!r.dir||!!(r.extra||'').trim()||!!r.wh||!!r.wt)}
+function raceVal(r){return r&&(r.max!=null?r.max:r.min)}
+function raceStr(r){if(!raceHas(r))return '–';const w=wStr({min:r.min,max:r.max,dir:r.dir,extra:r.extra});const v=[r.wh,r.wt].filter(Boolean).join(', ');return [w,v].filter(Boolean).join(' · ')}
+function wClassOf(v){return v==null?null:v<=7?'gyenge':v<=14?'közepes':'erős'}
+function racesOf(s){return (s.races||[]).filter(r=>raceVal(r)!=null||raceHas(r))}
+function raceSummary(s){const rs=s.races||[];if(!rs.some(raceHas))return '';const v=rs.flatMap(r=>[r.min,r.max]).filter(x=>x!=null);
+  const dirs=[...new Set(rs.map(r=>r.dir).filter(Boolean))];const wh=[...new Set(rs.map(r=>r.wh).filter(Boolean))];
+  return ['Futamok:',v.length?`${Math.min(...v)}–${Math.max(...v)} kts`:'',dirs.join('→'),wh.length?`· ${wh.join('/')}`:''].filter(Boolean).join(' ')}
+function raceExcel(s){const rs=s.races||[];if(!rs.some(raceHas))return '';return rs.map((r,i)=>`${i+1}: ${raceStr(r)}`).join('; ')}
 function waveStr(s){return [s.wh,s.wt].filter(Boolean).join(', ')}
 function seasonOf(s){return Number(s.date.slice(0,4))}
 function allSeasons(){const set=new Set((S.options.seasons||[]).map(Number));Object.values(S.sessions).forEach(s=>set.add(seasonOf(s)));
@@ -459,7 +479,7 @@ function renderSync(){
   el.innerHTML=`<span class="dot ${cls}"></span><span>${esc(txt)}</span>`;
 }
 /* ---------- Google Drive sync ---------- */
-const APP_VERSION=27;
+const APP_VERSION=28;
 /* display settings for large monitors: stored per device */
 const DISP=Object.assign({w:'normal',fs:100},lsGet('edz.display',{}));
 function applyDisplay(){const r=document.documentElement;r.dataset.width=DISP.w;r.style.setProperty('--fs',DISP.fs/100);document.body.style.zoom=DISP.fs===100?'':String(DISP.fs/100)}
@@ -764,7 +784,7 @@ function renderLog(){
           <div class="c-top">${s.type?`<span class="pill ${ver?'verseny':''}">${esc(s.type)}</span>`:''}${terv?'<span class="pill terv">Tervezett</span>':''}${s.plan&&(s.plan.blocks||[]).length?'<span class="pill">Terv</span>':''}
             <span>${esc([s.loc,s.group].filter(Boolean).join(' · '))}</span><span class="c-num">#${s.n}</span></div>
           ${s.race||s.heats!=null?`<div class="c-race">${esc([s.race,s.heats!=null?s.heats+' futam':''].filter(Boolean).join(' · '))}</div>`:''}
-          ${windFull(s)||waveStr(s)?`<div class="c-wind">${esc([windFull(s),waveStr(s)?'hullám: '+waveStr(s):''].filter(Boolean).join(' · '))}</div>`:''}
+          ${windFull(s)||waveStr(s)?`<div class="c-wind">${esc([windFull(s),waveStr(s)?'hullám: '+waveStr(s):''].filter(Boolean).join(' · '))}</div>`:''}${raceSummary(s)?`<div class="c-wind">${esc(raceSummary(s))}</div>`:''}
           ${(()=>{if(!s.race)return '';const R=getRes(seasonOf(s),s.race);if(!R)return '';const es=(s.athletes||[]).filter(a=>R.entries[a]&&R.entries[a].rank).sort((a,b)=>R.entries[a].rank-R.entries[b].rank);
         if(!es.length&&!R.fileKey&&!R.url)return '';return `<div class="c-res">${es.length?'Eredmény: '+esc(es.map(a=>`${firstName(a)} ${R.entries[a].rank}${R.entries[a].fleet?'/'+R.entries[a].fleet:'.'}`).join(' · ')):''}${R.fileKey||R.url?(es.length?' · ':'')+'eredménylista csatolva':''}</div>`})()}
       ${(s.focus||[]).length?`<div class="c-focus">${esc(s.focus.join(', '))}</div>`:''}
@@ -788,6 +808,7 @@ function openForm(id,preset){
     s={date:todayStr(),status:'kesz',loc:last?.loc||'',group:last?.group||'',type:'Edzés',race:'',athletes:[],w1:blankW(),w2:null,focus:[],h:null,m:null,note:'',wh:'',wt:'',...(preset||{})};}
   s.w1=Object.assign(blankW(),s.w1||{});s.w2=Object.assign(blankW(),s.w2||{});
   if(id&&s.status==='terv'){s.status='kesz';if(s.plan&&!(s.focus||[]).length)s.focus=[...new Set((s.plan.blocks||[]).map(b=>b.name).filter(Boolean))]}
+  s.races=clone(s.races||[]).map(r=>Object.assign(blankRace(),r));s._rOpen=null;
   s._id=id||null;s._adding=null;s._anim=true;s._confirm=false;s._showW2=wHas(s.w2);
   S.form=s;renderForm();
 }
@@ -804,6 +825,23 @@ function windBlock(n){
     <input class="txt" id="w${n}extra" data-wextra="${n}" value="${esc(w.extra)}" placeholder="Egyéb (pl. cső, lökéses, zivatar)">
   </div>`;
 }
+function syncRaces(f){const n=Math.max(0,Number(f.heats)||0);f.races=f.races||[];
+  while(f.races.length<n){const last=f.races[f.races.length-1];const r=last?Object.assign(clone(last),{set:false}):blankRace();f.races.push(r)}
+  if(f.races.length>n)f.races.length=n}
+function raceBlock(f){syncRaces(f);const o=f._rOpen;
+  let h=`<div class="fld"><div class="lbl">Futamonkénti szél és hullám <span class="hint">az első kitöltött futam az alapja a következőknek</span></div><div class="races">`;
+  f.races.forEach((r,i)=>{const inh=i>0&&!r.set&&raceHas(r);
+    h+=`<button type="button" class="race-row ${o===i?'on':''}" data-rx="${i}"><b>${i+1}. futam</b><span class="${inh?'inh':''}">${esc(raceStr(r))}${inh?' <i>= előző</i>':''}</span><span class="chev">${o===i?'▾':'▸'}</span></button>`;
+    if(o===i){const kOn=v=>{if(r.min==null)return false;if(v===r.min||v===r.max)return true;if(r.max!=null&&v>Math.min(r.min,r.max)&&v<Math.max(r.min,r.max))return 'mid';return false};const dirs=r.dir?r.dir.split('-'):[];
+      h+=`<div class="race-edit"><div class="sub">Szélerősség (kts): első koppintás a legkisebb, második a legnagyobb</div>${chips('form','rkts',list('kts'),kOn,{num:true,ph:'pl. 45'})}
+        <div class="sub">Irány (legfeljebb kettő)</div>${chips('form','rdir',list('dirs'),v=>dirs.includes(v),{ph:'pl. változó'})}
+        <div class="sub">Hullámmagasság</div>${chips('form','rwh',list('waveH'),v=>v===r.wh,{ph:'pl. 30 cm'})}
+        <div class="sub">Hullámtípus</div>${chips('form','rwt',list('waveT'),v=>v===r.wt,{ph:'pl. keresztező'})}
+        <input class="txt" data-rextra="${i}" value="${esc(r.extra||'')}" placeholder="Egyéb (pl. lökéses, elmaradt)">
+        ${i>0?`<div class="row2"><button type="button" class="chip ghost" data-rcopy="${i}">Mint az előző futam</button></div>`:''}</div>`}});
+  return h+'</div></div>'}
+/* a race you set is copied once into the following races you have not set yet */
+function racePropagate(f,i){const src=f.races[i];src.set=true;for(let j=i+1;j<f.races.length;j++){if(f.races[j].set)break;const keep=f.races[j];Object.assign(keep,clone(src),{set:false})}}
 function renderForm(){
   const f=S.form;const sh=$('#sheet');const body=sh.querySelector('.sh-body');const st=body?body.scrollTop:0;
   const ver=(f.type||'').toLowerCase().startsWith('verseny');
@@ -825,6 +863,7 @@ function renderForm(){
     <div class="fld"><div class="lbl">Edzés / Verseny</div>${chips('form','type',list('types'),v=>v===f.type,{ph:'pl. Tábor'})}
       ${ver?`<div class="sub">Verseny neve</div>${chips('form','race',list('races'),v=>v===f.race,{ph:'pl. Kékszalag'})}
       <div class="sub">Futamok száma</div>${chips('form','heats',list('heatsN'),v=>v===f.heats,{num:true,ph:'pl. 10'})}`:''}</div>
+    ${ver&&Number(f.date.slice(0,4))>=RACE_FROM&&Number(f.heats)>0?raceBlock(f):''}
     ${ver?resultBlock(f):''}
     <div class="fld"><div class="lbl">Résztvevők <span class="hint">${f.athletes.length} fő kiválasztva</span></div>
       <div class="row2">${lastAth?`<button type="button" class="chip" data-lastath="1">Mint legutóbb (${lastAth.length} fő)</button>`:''}
@@ -853,6 +892,7 @@ function saveForm(){
   const f=S.form;const d={date:f.date,status:f.status,loc:f.loc||'',group:f.group||'',type:f.type||'',
     race:(f.type||'').toLowerCase().startsWith('verseny')?(f.race||''):'',
     heats:(f.type||'').toLowerCase().startsWith('verseny')&&f.heats!=null?f.heats:null,
+    races:(f.type||'').toLowerCase().startsWith('verseny')&&Number(f.date.slice(0,4))>=RACE_FROM&&(f.races||[]).some(raceHas)?f.races.map(r=>{const o=clone(r);o.set=true;return o}):undefined,
     athletes:f.athletes.slice(),focus:f.focus.slice(),
     w1:wHas(f.w1)?clone(f.w1):null,w2:wHas(f.w2)?clone(f.w2):null,
     h:f.h,m:f.m,wh:f.wh||'',wt:f.wt||'',note:(f.note||'').trim(),created:S.sessions[f._id]?.created||Date.now()};
@@ -892,6 +932,11 @@ function handleChip(ctx,key,raw){
     case 'focus':t.focus=t.focus.includes(v)?t.focus.filter(x=>x!==v):[...t.focus,v];break;
     case 'h':t.h=t.h===v?null:v;break;
     case 'heats':t.heats=t.heats===v?null:v;break;
+    case 'rkts':case 'rdir':case 'rwh':case 'rwt':{const i=t._rOpen;if(i==null||!t.races[i])break;const r=t.races[i];
+      if(key==='rkts'){if(r.min==null){r.min=v;r.max=null}else if(r.max==null){if(v===r.min)r.min=null;else if(v<r.min){r.max=r.min;r.min=v}else r.max=v}else{r.min=v;r.max=null}}
+      else if(key==='rdir'){let cur=r.dir?r.dir.split('-'):[];if(cur.includes(v))cur=cur.filter(x=>x!==v);else if(cur.length<2)cur.push(v);else cur=[v];r.dir=cur.join('-')}
+      else if(key==='rwh')r.wh=r.wh===v?'':v;else r.wt=r.wt===v?'':v;
+      racePropagate(t,i);break}
     case 'm':t.m=t.m===v?null:v;break;
     default:{
       const mm=key.match(/^w([12])(kts|dir)$/);if(!mm)break;const w=t['w'+mm[1]];
@@ -916,6 +961,7 @@ function selectAdded(ctx,key,vals){
     else if(['loc','group','type','race'].includes(key))t[key]=v;
     else if(key==='ploc')t.loc=v; else if(key==='pgroup')t.group=v; else if(key==='ptype')t.type=v;
     else if(key==='h'||key==='m'||key==='heats')t[key]=v;
+    else if(['rkts','rdir','rwh','rwt'].includes(key)&&t._rOpen!=null){if(key==='rkts'||key==='rdir')handleChip(ctx,key,String(v));else{t.races[t._rOpen][key==='rwh'?'wh':'wt']=v;racePropagate(t,t._rOpen)}}
     else if(key==='wh'||key==='wt')t[key]=v;
     else if(key==='peloc')t.loc=v;else if(key==='pegroup')t.group=v;else if(key==='petype')t.type=v;
     else if(key==='peath'){if(!t.athletes.includes(v))t.athletes.push(v)}else if(key==='peblock')t.blocks.push({name:v,min:20,note:''});
@@ -955,8 +1001,14 @@ function renderSum(){
   {const wd=done.filter(s=>!(Number(s.h)===0&&Number(s.m)===0&&s.h!=null));const W={gyenge:{n:0,m:0},'közepes':{n:0,m:0},'erős':{n:0,m:0},none:{n:0,m:0}};
    wd.forEach(s=>{const k=windClass(s)||'none';W[k].n++;W[k].m+=minsOf(s)});const known=W.gyenge.n+W['közepes'].n+W['erős'].n;
    const rows=[['gyenge','Gyenge (0–7 csomó)'],['közepes','Közepes (8–14 csomó)'],['erős','Erős (15+ csomó)']];
-   if(known)h+=`<h3 class="sec-h">Szélerősség</h3><p class="bar-note">A ${known} lezárt nap közül, ahol rögzítetted a szelet${W.none.n?` (${W.none.n} napon nincs széladat)`:''}. A nap legerősebb szele számít.</p><div class="bars">`+rows.map(([k,l])=>
+   if(known)h+=`<h3 class="sec-h">Szélerősség</h3><p class="bar-note">A ${known} lezárt nap közül, ahol rögzítetted a szelet${W.none.n?` (${W.none.n} napon nincs széladat)`:''}. Edzésnapon a nap legerősebb szele, versenynapon a futamok átlaga számít.</p><div class="bars">`+rows.map(([k,l])=>
      `<div class="bar"><span class="nm">${l}</span><span class="tr"><i style="width:${pct(W[k].n,known)}%"></i></span><span class="vv"><b>${pct(W[k].n,known)}%</b> · ${W[k].n} nap · ${hmLong(W[k].m)}</span></div>`).join('')+`</div>`}
+  {const rs=done.flatMap(s=>(s.races||[]).filter(r=>raceVal(r)!=null||r.wh));if(rs.length){const R={gyenge:0,'közepes':0,'erős':0};rs.forEach(r=>{const k=wClassOf(raceVal(r));if(k)R[k]++});const kn=R.gyenge+R['közepes']+R['erős'];
+    const wv={};rs.forEach(r=>{if(r.wh)wv[r.wh]=(wv[r.wh]||0)+1});const wn=Object.values(wv).reduce((a,b)=>a+b,0);const wo=list('waveH');
+    h+=`<h3 class="sec-h">Futamok szélerősség szerint</h3><p class="bar-note">${rs.length} futam, mindegyik külön számolva.</p><div class="bars">`+[['gyenge','Gyenge (0–7 csomó)'],['közepes','Közepes (8–14 csomó)'],['erős','Erős (15+ csomó)']].map(([k,l])=>
+      `<div class="bar"><span class="nm">${l}</span><span class="tr"><i style="width:${pct(R[k],kn)}%"></i></span><span class="vv"><b>${pct(R[k],kn)}%</b> · ${R[k]} futam</span></div>`).join('')+`</div>`;
+    if(wn)h+=`<h3 class="sec-h">Futamok hullámmagasság szerint</h3><div class="bars">`+Object.entries(wv).sort((a,b)=>wo.indexOf(a[0])-wo.indexOf(b[0])).map(([k,n])=>
+      `<div class="bar"><span class="nm">${esc(k)}</span><span class="tr"><i style="width:${pct(n,wn)}%"></i></span><span class="vv"><b>${pct(n,wn)}%</b> · ${n} futam</span></div>`).join('')+`</div>`}}
   h+=`<h3 class="sec-h">Részvétel versenyzőnként</h3><p class="bar-note">A ${attDays.length} lezárt nap közül, ahol rögzítetted a résztvevőket.</p><div class="bars">`+(arr.length?arr.map(([n,v])=>
     `<div class="bar"><span class="nm">${esc(n)}</span><span class="tr"><i style="width:${pct(v.n,attDays.length)}%"></i></span><span class="vv"><b>${pct(v.n,attDays.length)}%</b> · ${v.n}/${attDays.length} nap · ${hm(v.m)}</span></div>`).join(''):'<p>Nincs rögzített résztvevő.</p>')+`</div>`;
   const trDays=done.filter(s=>!isV(s)&&(s.focus||[]).length);
@@ -987,7 +1039,7 @@ function repDays(group,ym){return Object.values(S.sessions).filter(s=>s.status!=
 function repKey(g,ym){return (g||'')+'|'+ym}
 function getRep(g,ym){const k=repKey(g,ym);if(!S.reports[k])S.reports[k]={overview:'',notes:{},skip:[]};const r=S.reports[k];r.notes=r.notes||{};r.skip=r.skip||[];r.extra=r.extra||[];return r}
 function prevYm(ym){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
-function windClass(s){const v=[s.w1,s.w2].filter(Boolean).flatMap(w=>[w.max,w.min]).filter(x=>x!=null);if(!v.length)return null;const m=Math.max(...v);return m<=7?'gyenge':m<=14?'közepes':'erős'}
+function windClass(s){const rv=(s.races||[]).map(raceVal).filter(x=>x!=null);if(rv.length)return wClassOf(rv.reduce((a,b)=>a+b,0)/rv.length);const v=[s.w1,s.w2].filter(Boolean).flatMap(w=>[w.max,w.min]).filter(x=>x!=null);if(!v.length)return null;const m=Math.max(...v);return m<=7?'gyenge':m<=14?'közepes':'erős'}
 function joinHu(a){return a.length<2?a.join(''):a.slice(0,-1).join(', ')+' és '+a[a.length-1]}
 function raceList(days){const m={};days.filter(isVer).forEach(s=>{const k=s.race||'';m[k]=m[k]||{d:0,h:0,hk:false};m[k].d++;if(s.heats!=null){m[k].h+=Number(s.heats)||0;m[k].hk=true}});return m}
 function raceTxt(m){return Object.entries(m).map(([n,v])=>`${n||'név nélküli verseny'} (${!v.hk?v.d+' nap':v.h?v.h+' futam':'nem volt futam'})`)}
@@ -1256,10 +1308,12 @@ function evMonthly(name){const y=curSeason();const mine=Object.values(S.sessions
 function evWind(name){const y=curSeason();
   const days=Object.values(S.sessions).filter(s=>seasonOf(s)===y&&s.status!=='terv'&&(s.athletes||[]).includes(name)&&!(Number(s.h)===0&&Number(s.m)===0&&s.h!=null));
   const c={gyenge:{n:0,m:0},'közepes':{n:0,m:0},'erős':{n:0,m:0},none:{n:0,m:0}};days.forEach(s=>{const k=windClass(s)||'none';c[k].n++;c[k].m+=minsOf(s)});
-  const known=c.gyenge.n+c['közepes'].n+c['erős'].n;return {c,known,total:days.length}}
+  const known=c.gyenge.n+c['közepes'].n+c['erős'].n;const rc={gyenge:0,'közepes':0,'erős':0};days.forEach(s=>(s.races||[]).forEach(r=>{const k=wClassOf(raceVal(r));if(k)rc[k]++}));
+  return {c,known,total:days.length,rc,rn:rc.gyenge+rc['közepes']+rc['erős']}}
 function evWindText(w){const pc=n=>w.known?Math.round(n/w.known*100):0;const L=[['gyenge','Gyenge szél (0–7 csomó)'],['közepes','Közepes szél (8–14 csomó)'],['erős','Erős szél (15+ csomó)']];
   const lines=L.map(([k,l])=>`${l}: ${w.c[k].n} nap (${pc(w.c[k].n)}%)${w.c[k].m?`, ${hmLong(w.c[k].m)} vízen`:''}`);
-  if(w.c.none.n)lines.push(`Nincs széladat: ${w.c.none.n} nap`);return ['Szélerősség szerinti megoszlás (vízen töltött napok):',...lines].join('\n')}
+  if(w.c.none.n)lines.push(`Nincs széladat: ${w.c.none.n} nap`);
+  if(w.rn)lines.push(`Futamok: ${w.rc.gyenge} gyenge, ${w.rc['közepes']} közepes, ${w.rc['erős']} erős szélben (${w.rn} futam)`);return ['Szélerősség szerinti megoszlás (vízen töltött napok):',...lines].join('\n')}
 function evAttendFact(st){let t=`A szezonban a csapat ${st.tT+st.tV} napjából (${st.tT} edzés- és ${st.tV} versenynap) ${st.aT+st.aV} napon vett részt (${st.pct}%): ${st.aT} edzésnapon és ${st.aV} versenynapon${st.heats?` (${st.heats} futam)`:''}.`;if(st.races.length)t+=` Versenyek: ${st.races.join(', ')}.`;return t}
 function renderEv(){
   const names=evNames();
@@ -1483,7 +1537,7 @@ function exportXlsx(){
   const waves=y>=WAVE_FROM||rows.some(s=>s.wh||s.wt);
   const aoa=[[],['','','','','','','','','Vízen töltött idő','','','','','','Összes vízen töltött óra'],
     ['','Dátum','Helyszín','Csoport','B','Edzés/Verseny','Meteo','Fókusz','óra','perc','Megjegyzés',waves?'Hullámmagasság':'',waves?'Hullámtípus':'','',{f:`SUM(I4:I${last})+SUM(J4:J${last})/60`,v:Math.round(tot*100)/100}]];
-  rows.forEach((s,i)=>aoa.push([i+1,pd(s.date),s.loc||'',s.group||'',(s.athletes||[]).join(', '),s.type||'',windFull(s),[...(s.focus||[]),s.heats!=null?s.heats+' futam':''].filter(Boolean).join(', '),
+  rows.forEach((s,i)=>aoa.push([i+1,pd(s.date),s.loc||'',s.group||'',(s.athletes||[]).join(', '),s.type||'',[windFull(s),raceExcel(s)].filter(Boolean).join(' | '),[...(s.focus||[]),s.heats!=null?s.heats+' futam':''].filter(Boolean).join(', '),
     s.h??'',s.m??'',[s.race,s.note,s.status==='terv'?'(tervezett)':''].filter(Boolean).join(' – '),s.wh||'',s.wt||'']));
   try{saveFile(`Edzesnaplo_${y}.xlsx`,buildXlsx(aoa));toast('Excel letöltve')}catch(e){toast('Az Excel készítése nem sikerült')}
 }
@@ -1581,6 +1635,8 @@ document.addEventListener('click',e=>{
   if(ds.delx){S.form._confirm=false;renderForm();return}
   if(ds.del){delSession(S.form._id);closeForm();render();toast('Törölve');return}
   if(ds.w2){S.form._showW2=true;renderForm();return}
+  if(ds.rx){const i=Number(ds.rx);S.form._rOpen=S.form._rOpen===i?null:i;S.form._adding=null;renderForm();return}
+  if(ds.rcopy){const f=S.form,i=Number(ds.rcopy);Object.assign(f.races[i],clone(f.races[i-1]));racePropagate(f,i);renderForm();return}
   if(ds.w2x){S.form._showW2=false;S.form.w2=blankW();renderForm();return}
   if(ds.lastath){const prev=Object.values(S.sessions).filter(s=>s.date<S.form.date&&(s.athletes||[]).length).sort((a,b)=>b.date.localeCompare(a.date))[0];
     if(prev)S.form.athletes=prev.athletes.slice();renderForm();return}
@@ -1614,6 +1670,7 @@ document.addEventListener('input',e=>{
   if(t.dataset&&t.dataset.evf&&S.evName){const e=curEval();if(t.dataset.evf==='age'){if(!e.started)e.started=todayStr();e.ageManual=true}else evTouch(e);e[t.dataset.evf]=t.value;evLiveReady();if(t.tagName==='TEXTAREA')autoGrow(t);repSaveSoon()}
   if(t.dataset&&t.dataset.repov){getRep(S.repGroup,S.repMonth).overview=t.value;autoGrow(t);repLiveReady(null);repSaveSoon()}
   if(t.dataset&&t.dataset.repn!=null&&t.dataset.repn!==undefined&&t.classList.contains('rep')){const n=S._repOrder[Number(t.dataset.repn)];getRep(S.repGroup,S.repMonth).notes[n]=t.value;autoGrow(t);repLiveReady(Number(t.dataset.repn));repSaveSoon()}
+  if(t.dataset.rextra!=null&&t.matches('[data-rextra]')&&S.form){const i=Number(t.dataset.rextra);S.form.races[i].extra=t.value;racePropagate(S.form,i);const row=document.querySelector(`[data-rx="${i}"] span`);if(row)row.textContent=raceStr(S.form.races[i])}
   if(t.dataset.wextra&&S.form){S.form['w'+t.dataset.wextra].extra=t.value;const pv=t.closest('.wind').querySelector('.prev');if(pv)pv.textContent=wStr(S.form['w'+t.dataset.wextra])||'—'}
 });
 document.addEventListener('change',e=>{
